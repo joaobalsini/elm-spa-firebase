@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Obra - Protótipo 01</title>
+    <link rel="stylesheet" type="text/css" href="semantic.min.css">
+    <style media="all">
+    body {
+        background-color: #FFFFFF;
+    }
+    .ui.menu .item img.logo {
+        margin-right: 1.5em;
+    }
+    .main.container {
+        margin-top: 7em;
+    }
+
+    div.ui.message {
+        margin-top: 7em;
+    }
+
+    .ui.footer.segment {
+        margin: 5em 0em 0em;
+        padding: 5em 0em;
+    }
+    </style>
+</head>
+
+<body>
+    <div id="app"></div>
+
+    <script src="bundle.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/3.6.2/firebase.js"></script>
+    <script src="firebaseConfig.js"></script>
+    <script src="appfb.js"></script>
+    <script
+    src="https://code.jquery.com/jquery-3.1.1.min.js"
+    integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8="
+    crossorigin="anonymous"></script>
+    <script src="semantic.min.js"></script>
+
+    <script>
+    var app = Elm.Main.fullscreen();
+
+    //MATERIAIS
+    app.ports.addMaterial.subscribe(function(material){
+        addMaterial(material)
+        .then(function(response){
+
+        }, function(err){
+            console.log("error:", err);
+        });
+    });
+    app.ports.updateMaterial.subscribe(function(material){
+        updateMaterial(material)
+        .then(function(response){
+
+        }, function(err){
+            console.log("error:", err);
+        });
+    });
+    app.ports.removeMaterial.subscribe(function(material){
+        deleteMaterial(material)
+        .then(function(response){
+
+        }, function(err) {
+            console.log("error:", err);
+        });
+    });
+
+    var materialListener = materialListener();
+    materialListener.on("child_added", function(data){
+        var material = Object.assign({id: data.key}, data.val());
+        material.id = data.key
+        app.ports.materialAdded.send(material);
+    });
+
+    materialListener.on("child_removed", function(data){
+        app.ports.materialRemoved.send(data.key);
+    });
+
+    materialListener.on('child_changed', function(data) {
+        var material = Object.assign({id: data.key}, data.val());
+        material.id = data.key
+        app.ports.materialUpdated.send(material);
+    });
+
+    //UNITS
+    app.ports.addUnit.subscribe(function(unit){
+        addUnit(unit)
+        .then(function(data){
+
+        }, function(err){
+            message = {
+                messageClass: "error",
+                header: "Error adding Unit",
+                text: err.code,
+                active: true
+            }
+
+            app.ports.errorMessage.send(message)
+        });
+    });
+    app.ports.updateUnit.subscribe(function(unit){
+        updateUnit(unit)
+        .then(function(response){
+
+        }, function(err){
+            message = {
+                messageClass: "error",
+                header: "Error updating Unit",
+                text: err.code,
+                active: true
+            }
+
+            app.ports.errorMessage.send(message)
+        });
+    });
+    app.ports.removeUnit.subscribe(function(unit){
+        $('.ui.modal')
+          .modal({
+            closable  : false,
+            onDeny    : function(){
+              return true;
+            },
+            onApprove : function() {
+                deleteUnit(unit)
+                .then(function(response){
+
+                }, function(err) {
+                    message = {
+                        messageClass: "error",
+                        header: "Error removing Unit",
+                        text: err.code,
+                        active: true
+                    }
+
+                    app.ports.errorMessage.send(message)
+                });
+            }
+          })
+          .modal('show');
+    });
+
+
+
+
+    var unitListener = unitListener();
+    unitListener.on("child_added", function(data){
+        var unit = Object.assign({id: data.key}, data.val());
+        unit.id = data.key
+        app.ports.unitAdded.send(unit);
+    });
+    unitListener.on("child_removed", function(data){
+        app.ports.unitRemoved.send(data.key);
+    });
+    unitListener.on('child_changed', function(data) {
+        var unit = Object.assign({id: data.key}, data.val());
+        unit.id = data.key
+        app.ports.unitUpdated.send(unit);
+    });
+    </script>
+</body>
+
+</html>
