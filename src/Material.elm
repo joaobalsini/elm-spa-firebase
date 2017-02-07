@@ -5,6 +5,7 @@ import Html.Events exposing (..)
 import Html.Attributes exposing (..)
 import Navigation
 import Unit
+import Message
 
 
 -- model
@@ -15,7 +16,7 @@ type alias Model =
     { id : String
     , name : String
     , nameError : Maybe String
-    , unit : Maybe Unit.Unit
+    , unit_id : String
     , unitError : Maybe String
     , inventory : String
     , inventoryError : Maybe String
@@ -23,6 +24,7 @@ type alias Model =
     , materials : List Material
     , query : String
     , error : Maybe String
+    , displayingConfirmDialog : Bool
     }
 
 
@@ -33,6 +35,22 @@ type Subpage
     | ShowPage String
 
 
+subpageToHash : Subpage -> String
+subpageToHash subpage =
+    case subpage of
+        IndexPage ->
+            "#/materials"
+
+        NewPage ->
+            "#/materials/new"
+
+        ShowPage id ->
+            "#/materials/" ++ id
+
+        EditPage id ->
+            "#/materials/edit/" ++ id
+
+
 
 -- real model
 
@@ -40,7 +58,7 @@ type Subpage
 type alias Material =
     { id : String
     , name : String
-    , unit : Maybe Unit.Unit
+    , unit_id : Maybe String
     , inventory : Float
     }
 
@@ -49,7 +67,7 @@ initMaterial : Material
 initMaterial =
     { id = ""
     , name = ""
-    , unit = Nothing
+    , unit_id = Nothing
     , inventory = 0.0
     }
 
@@ -59,7 +77,7 @@ initModel =
     { id = ""
     , name = ""
     , nameError = Nothing
-    , unit = Nothing
+    , unit_id = ""
     , unitError = Nothing
     , inventory = ""
     , inventoryError = Nothing
@@ -67,6 +85,7 @@ initModel =
     , materials = []
     , query = ""
     , error = Nothing
+    , displayingConfirmDialog = False
     }
 
 
@@ -80,8 +99,9 @@ init =
 
 
 type Msg
-    = NameInputChanged String
-    | UnitSelectChanged Unit.Unit
+    = Navigate Subpage Message.Model
+    | NameInputChanged String
+    | UnitSelectChanged String
     | InventoryInputChanged String
     | Add Material
     | Added Material
@@ -91,17 +111,59 @@ type Msg
     | Removed String
 
 
-updateMaterialIfIdMatches : Material -> String -> Material -> Material
-updateMaterialIfIdMatches updatedMaterial materialId originalMaterial =
+updateMaterialAtId : Material -> String -> Material -> Material
+updateMaterialAtId updatedMaterial materialId originalMaterial =
     if originalMaterial.id == materialId then
-        updatedMaterial
+        --need to finish: unit = Get unit from list passing unit id
+        { originalMaterial | name = updatedMaterial.name, inventory = updatedMaterial.inventory }
     else
         originalMaterial
 
 
-update : Msg -> Model -> ( Model, Cmd Msg, Maybe String )
+getMaterialByIdFromMaterialsList : List Material -> String -> Maybe Material
+getMaterialByIdFromMaterialsList list id =
+    case list of
+        [] ->
+            Nothing
+
+        x :: xs ->
+            if x.id == id then
+                Just x
+            else
+                getMaterialByIdFromMaterialsList xs id
+
+
+update : Msg -> Model -> ( Model, Cmd Msg, Message.Model )
 update msg model =
     case msg of
+        Navigate subpage message ->
+            case subpage of
+                ShowPage id ->
+                    ( model
+                    , Navigation.newUrl <| subpageToHash subpage
+                    , Message.initModel
+                    )
+
+                EditPage id ->
+                    let
+                        material =
+                            getMaterialByIdFromMaterialsList model.materials id
+
+                        materialOrInitMaterial =
+                            Maybe.withDefault initMaterial material
+                    in
+                        --need to finish: unit = Get unit from list passing unit id
+                        ( { model | id = id, unit_id = Maybe.withDefault "" materialOrInitMaterial.unit_id, name = materialOrInitMaterial.name, inventory = toString (materialOrInitMaterial.inventory), material = materialOrInitMaterial }
+                        , Navigation.newUrl <| subpageToHash subpage
+                        , Message.initModel
+                        )
+
+                _ ->
+                    ( { model | material = initMaterial, name = "", inventory = "", unit_id = "" }
+                    , Navigation.newUrl <| subpageToHash subpage
+                    , Message.initModel
+                    )
+
         NameInputChanged name_ ->
             let
                 actualModel =
@@ -116,7 +178,7 @@ update msg model =
                     , material = updatedModel
                   }
                 , Cmd.none
-                , Nothing
+                , Message.initModel
                 )
 
         InventoryInputChanged inventory_ ->
@@ -144,68 +206,100 @@ update msg model =
                     , material = updatedModel
                   }
                 , Cmd.none
-                , Nothing
+                , Message.initModel
                 )
 
-        UnitSelectChanged unit_ ->
+        UnitSelectChanged unit_id_ ->
             let
                 actualModel =
                     model.material
 
                 updatedModel =
-                    { actualModel | unit = Just unit_ }
+                    { actualModel | unit_id = Just unit_id_ }
             in
                 ( { model
-                    | unit = Just unit_
+                    | unit_id = unit_id_
                     , unitError = Nothing
                     , material = updatedModel
                   }
                 , Cmd.none
-                , Nothing
+                , Message.initModel
                 )
 
         Add material ->
-            ( model, addMaterial material, Nothing )
+            ( model, addMaterial material, Message.initModel )
 
         Added material ->
             let
                 newMaterials =
                     material :: model.materials
+
+                initMessage =
+                    Message.initModel
+
+                message =
+                    { initMessage
+                        | messageClass = "positive"
+                        , header = "Sucess added"
+                        , text = "Material successfully added"
+                        , active = True
+                    }
             in
-                ( { model | materials = newMaterials }, Navigation.newUrl "#/materials", Just "Success added" )
+                ( { model | materials = newMaterials }, Navigation.newUrl "#/materials", message )
 
         Remove material ->
-            ( model, removeMaterial material, Nothing )
+            ( model, removeMaterial material, Message.initModel )
 
         Removed id ->
             let
                 newMaterials =
                     List.filter (\material -> material.id /= id)
                         model.materials
+
+                initMessage =
+                    Message.initModel
+
+                message =
+                    { initMessage
+                        | messageClass = "positive"
+                        , header = "Sucess removed"
+                        , text = "Material successfully removed"
+                        , active = True
+                    }
             in
-                ( { model | materials = newMaterials }, Cmd.none, Just "Success Removed" )
+                ( { model | materials = newMaterials }, Cmd.none, message )
 
         Update material ->
-            ( model, updateMaterial material, Nothing )
+            ( model, updateMaterial material, Message.initModel )
 
         Updated material ->
             -- create update material
             let
                 -- map puts the element as last parameter for function updateMaterialIfIdMatches
                 newMaterials =
-                    List.map (updateMaterialIfIdMatches material material.id) model.materials
+                    List.map (updateMaterialAtId material material.id) model.materials
 
                 -- this function updates a material element IF the id matches
+                initMessage =
+                    Message.initModel
+
+                message =
+                    { initMessage
+                        | messageClass = "positive"
+                        , header = "Sucess updated"
+                        , text = "Material successfully updated"
+                        , active = True
+                    }
             in
-                ( { model | materials = newMaterials }, Navigation.newUrl "#/materials", Just "Success updated" )
+                ( { model | materials = newMaterials }, Navigation.newUrl "#/materials", message )
 
 
 view : Model -> Subpage -> Html Msg
 view model subpage =
     div [ class "main" ]
-        [ h1 [ class "ui header" ] [ text "Add runner" ]
-        , errorPanel model.error
+        [ errorPanel model.error
         , renderSubPage model subpage
+        , confirmModalView model
         ]
 
 
@@ -249,11 +343,19 @@ renderSubPage model subpage =
 listView : Model -> Html Msg
 listView { query, materials } =
     -- filter using query afterwards
-    materials
-        |> List.map materialView
-        |> tbody []
-        |> (\r -> materialsHeader :: [ r ])
-        |> table []
+    let
+        table_ =
+            materials
+                |> List.map materialView
+                |> tbody []
+                |> (\r -> materialsHeader :: [ r ])
+                |> table [ class "ui celled table" ]
+    in
+        div []
+            [ h1 [ class "ui header" ] [ text "Materials list" ]
+            , table_
+            , button [ class "ui button", onClick (Navigate NewPage Message.initModel) ] [ text "New" ]
+            ]
 
 
 materialsHeader : Html Msg
@@ -262,6 +364,7 @@ materialsHeader =
         [ tr []
             [ th [] [ text "ID" ]
             , th [] [ text "Name" ]
+            , th [] [ text "Unit ID" ]
             , th [] [ text "Inventory" ]
             , th [] [ text "Actions" ]
             ]
@@ -269,18 +372,34 @@ materialsHeader =
 
 
 materialView : Material -> Html Msg
-materialView { id, name, inventory } =
+materialView material =
     tr []
-        [ td [] [ text id ]
-        , td [] [ text name ]
-        , td [] [ text <| toString inventory ]
-        , td [] [ text "actions" ]
+        [ td [] [ text material.id ]
+        , td [] [ text material.name ]
+        , td [] [ text (Maybe.withDefault "" material.unit_id) ]
+        , td [] [ text <| toString material.inventory ]
+        , td []
+            [ button [ class "ui button", onClick (Navigate (EditPage material.id) Message.initModel) ] [ text "Edit" ]
+            , button [ class "ui button", onClick (Navigate (ShowPage material.id) Message.initModel) ] [ text "Show" ]
+            , button [ class "ui button", onClick (Remove material) ] [ text "Remove" ]
+            ]
         ]
 
 
 showView : Model -> String -> Html Msg
 showView model key =
     div [] [ text ("Showing material id:" ++ key) ]
+
+
+confirmModalView : Model -> Html Msg
+confirmModalView model =
+    div [ class "ui modal hidden" ]
+        [ div [ class "ui header" ] [ text "Are you sure?" ]
+        , div [ class "actions" ]
+            [ div [ class "ui red cancel button" ] [ text "Nope" ]
+            , div [ class "ui green ok button" ] [ text "Yep" ]
+            ]
+        ]
 
 
 formView : Model -> Maybe String -> Html Msg
@@ -306,6 +425,16 @@ formView model maybeKey =
                     , span [] [ text <| Maybe.withDefault "" model.nameError ]
                     ]
                 , div [ class "field" ]
+                    [ label [] [ text "UnitId" ]
+                    , input
+                        [ type_ "text"
+                        , value model.unit_id
+                        , onInput UnitSelectChanged
+                        ]
+                        []
+                    , span [] [ text <| Maybe.withDefault "" model.inventoryError ]
+                    ]
+                , div [ class "field" ]
                     [ label [] [ text "Inventory" ]
                     , input
                         [ type_ "text"
@@ -317,7 +446,7 @@ formView model maybeKey =
                     ]
                 , div []
                     [ label [] []
-                    , button [ type_ "submit", class "ui fluid large teal submit button" ] [ text "Login" ]
+                    , button [ type_ "submit", class "ui fluid large teal submit button" ] [ text "Save" ]
                     ]
                 ]
             ]

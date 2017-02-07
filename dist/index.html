@@ -44,13 +44,20 @@
     <script>
     var app = Elm.Main.fullscreen();
 
-    //MATERIAIS
+    //Materials
     app.ports.addMaterial.subscribe(function(material){
         addMaterial(material)
-        .then(function(response){
+        .then(function(data){
 
         }, function(err){
-            console.log("error:", err);
+            message = {
+                messageClass: "error",
+                header: "Error adding Material",
+                text: err.code,
+                active: true
+            }
+
+            app.ports.errorMessage.send(message)
         });
     });
     app.ports.updateMaterial.subscribe(function(material){
@@ -58,16 +65,40 @@
         .then(function(response){
 
         }, function(err){
-            console.log("error:", err);
+            message = {
+                messageClass: "error",
+                header: "Error updating Material",
+                text: err.code,
+                active: true
+            }
+
+            app.ports.errorMessage.send(message)
         });
     });
     app.ports.removeMaterial.subscribe(function(material){
-        deleteMaterial(material)
-        .then(function(response){
+        $('.ui.modal')
+          .modal({
+            closable  : false,
+            onDeny    : function(){
+              return true;
+            },
+            onApprove : function() {
+                deleteMaterial(material)
+                .then(function(response){
 
-        }, function(err) {
-            console.log("error:", err);
-        });
+                }, function(err) {
+                    message = {
+                        messageClass: "error",
+                        header: "Error removing Material",
+                        text: err.code,
+                        active: true
+                    }
+
+                    app.ports.errorMessage.send(message)
+                });
+            }
+          })
+          .modal('show');
     });
 
     var materialListener = materialListener();
@@ -76,11 +107,9 @@
         material.id = data.key
         app.ports.materialAdded.send(material);
     });
-
     materialListener.on("child_removed", function(data){
         app.ports.materialRemoved.send(data.key);
     });
-
     materialListener.on('child_changed', function(data) {
         var material = Object.assign({id: data.key}, data.val());
         material.id = data.key

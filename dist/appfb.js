@@ -29,13 +29,6 @@ function deleteUnit(unit){
   return promise;
 }
 
-function getUnit(id){
-    console.log('getUnit '+id)
-  var promise = database
-    .ref(UNITSPATH + "/" + id)
-  return promise;
-}
-
 function unitListener(){
   return database.ref(UNITSPATH);
 }

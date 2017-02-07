@@ -256,7 +256,7 @@ update msg model =
                 ( materialModel, cmd, message ) =
                     Material.update msg model.material
             in
-                ( { model | material = materialModel }
+                ( { model | material = materialModel, message = message }
                 , Cmd.map MaterialMsg cmd
                 )
 

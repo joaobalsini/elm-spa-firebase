@@ -52,7 +52,7 @@ update msg model =
 view : Model -> Html Msg
 view model =
     div [ class "main" ]
-        [ h1 [ class "ui header" ] [ text "LeaderBoard" ]
+        [ h1 [ class "ui header" ] [ text "Initial Page - Index" ]
         , messagePanel model.message
         , searchForm model.query
         ]
