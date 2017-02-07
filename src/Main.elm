@@ -117,6 +117,7 @@ matchers : Url.Parser (Route -> a) a
 matchers =
     Url.oneOf
         [ Url.map IndexRoute top
+        , Url.map LoginRoute (Url.s "login")
         , Url.map UnitEditRoute (Url.s "units" </> Url.s "edit" </> Url.string)
         , Url.map UnitNewRoute (Url.s "units" </> Url.s "new")
         , Url.map UnitShowRoute (Url.s "units" </> Url.string)
