@@ -4,7 +4,7 @@ import Html exposing (..)
 import Html.Events exposing (..)
 import Html.Attributes exposing (..)
 import Navigation
-import Message
+import Aliases exposing (Unit, initUnit, Message, initMessage)
 
 
 -- model
@@ -12,13 +12,11 @@ import Message
 
 
 type alias Model =
-    { id : String
-    , name : String
+    { name : String
     , nameError : Maybe String
     , initials : String
     , initialsError : Maybe String
     , unit : Unit
-    , units : List Unit
     , query : String
     , error : Maybe String
     , displayingConfirmDialog : Bool
@@ -52,30 +50,13 @@ subpageToHash subpage =
 -- real model
 
 
-type alias Unit =
-    { id : String
-    , name : String
-    , initials : String
-    }
-
-
-initUnit : Unit
-initUnit =
-    { id = ""
-    , name = ""
-    , initials = ""
-    }
-
-
 initModel : Model
 initModel =
-    { id = ""
-    , name = ""
+    { name = ""
     , nameError = Nothing
     , initials = ""
     , initialsError = Nothing
     , unit = initUnit
-    , units = []
     , query = ""
     , error = Nothing
     , displayingConfirmDialog = False
@@ -92,7 +73,7 @@ init =
 
 
 type Msg
-    = Navigate Subpage Message.Model
+    = Navigate Subpage (List Unit) Message
     | NameInputChanged String
     | InitialsInputChanged String
     | Add Unit
@@ -101,14 +82,6 @@ type Msg
     | Updated Unit
     | Remove Unit
     | Removed String
-
-
-updateUnitAtId : Unit -> String -> Unit -> Unit
-updateUnitAtId updatedUnit unitId originalUnit =
-    if originalUnit.id == unitId then
-        { originalUnit | name = updatedUnit.name, initials = updatedUnit.initials }
-    else
-        originalUnit
 
 
 getUnitByIdFromUnitsList : List Unit -> String -> Maybe Unit
@@ -124,34 +97,36 @@ getUnitByIdFromUnitsList list id =
                 getUnitByIdFromUnitsList xs id
 
 
-update : Msg -> Model -> ( Model, Cmd Msg, Message.Model )
+update : Msg -> Model -> ( Model, Cmd Msg, Message )
 update msg model =
     case msg of
-        Navigate subpage message ->
+        Navigate subpage units message ->
             case subpage of
                 ShowPage id ->
+                    -- if unit is Nothing, redirect back and show error
                     ( model
                     , Navigation.newUrl <| subpageToHash subpage
-                    , Message.initModel
+                    , initMessage
                     )
 
                 EditPage id ->
                     let
                         unit =
-                            getUnitByIdFromUnitsList model.units id
+                            getUnitByIdFromUnitsList units id
 
+                        -- if unit is Nothing, redirect back and show error
                         unitOrClearUnit =
                             Maybe.withDefault initUnit unit
                     in
-                        ( { model | id = id, name = unitOrClearUnit.name, initials = unitOrClearUnit.initials, unit = unitOrClearUnit }
+                        ( { model | name = unitOrClearUnit.name, initials = unitOrClearUnit.initials, unit = unitOrClearUnit }
                         , Navigation.newUrl <| subpageToHash subpage
-                        , Message.initModel
+                        , initMessage
                         )
 
                 _ ->
                     ( { model | unit = initUnit, name = "", initials = "" }
                     , Navigation.newUrl <| subpageToHash subpage
-                    , Message.initModel
+                    , initMessage
                     )
 
         NameInputChanged name_ ->
@@ -168,7 +143,7 @@ update msg model =
                     , unit = updatedModel
                   }
                 , Cmd.none
-                , Message.initModel
+                , initMessage
                 )
 
         InitialsInputChanged initials_ ->
@@ -185,20 +160,14 @@ update msg model =
                     , unit = updatedModel
                   }
                 , Cmd.none
-                , Message.initModel
+                , initMessage
                 )
 
         Add unit ->
-            ( model, addUnit unit, Message.initModel )
+            ( model, addUnit unit, initMessage )
 
         Added unit ->
             let
-                newUnits =
-                    unit :: model.units
-
-                initMessage =
-                    Message.initModel
-
                 message =
                     { initMessage
                         | messageClass = "positive"
@@ -207,20 +176,13 @@ update msg model =
                         , active = True
                     }
             in
-                ( { model | units = newUnits, unit = initUnit }, Navigation.newUrl "#/units", message )
+                ( { model | unit = initUnit }, Navigation.newUrl "#/units", message )
 
         Remove unit ->
-            ( model, removeUnit unit, Message.initModel )
+            ( model, removeUnit unit, initMessage )
 
         Removed id ->
             let
-                newUnits =
-                    List.filter (\unit -> unit.id /= id)
-                        model.units
-
-                initMessage =
-                    Message.initModel
-
                 message =
                     { initMessage
                         | messageClass = "positive"
@@ -229,21 +191,13 @@ update msg model =
                         , active = True
                     }
             in
-                ( { model | units = newUnits }, Cmd.none, message )
+                ( model, Cmd.none, message )
 
         Update unit ->
-            ( model, updateUnit unit, Message.initModel )
+            ( model, updateUnit unit, initMessage )
 
         Updated updatedUnit ->
-            -- create update unit
             let
-                -- map puts the element as last parameter for function updateUnitIfIdMatches
-                newUnits =
-                    List.map (updateUnitAtId updatedUnit updatedUnit.id) model.units
-
-                initMessage =
-                    Message.initModel
-
                 message =
                     { initMessage
                         | messageClass = "positive"
@@ -251,19 +205,32 @@ update msg model =
                         , text = "Unit successfully updated"
                         , active = True
                     }
-
-                -- this function updates a unit element IF the id matches
             in
-                ( { model | units = newUnits, unit = initUnit }, Navigation.newUrl "#/units", message )
+                ( { model | unit = initUnit }, Navigation.newUrl "#/units", message )
 
 
-view : Model -> Subpage -> Html Msg
-view model subpage =
-    div [ class "main" ]
-        [ errorPanel model.error
-        , renderSubPage model subpage
-        , confirmModalView model
-        ]
+view : Model -> List Unit -> Subpage -> Html Msg
+view model units subpage =
+    let
+        page =
+            case subpage of
+                IndexPage ->
+                    unitsToTable units model
+
+                NewPage ->
+                    unitForm model Nothing
+
+                EditPage string ->
+                    unitForm model (Just string)
+
+                ShowPage string ->
+                    unitShow model string
+    in
+        div [ class "main" ]
+            [ errorPanel model.error
+            , page
+            , confirmModalView model
+            ]
 
 
 errorPanel : Maybe String -> Html a
@@ -279,50 +246,25 @@ errorPanel error =
                 ]
 
 
-renderSubPage : Model -> Subpage -> Html Msg
-renderSubPage model subpage =
-    case subpage of
-        IndexPage ->
-            listView model
-
-        NewPage ->
-            formView model Nothing
-
-        EditPage string ->
-            formView model (Just string)
-
-        ShowPage string ->
-            showView model string
-
-
-
--- type Subpage
---     = UnitIndexPage
---     | UnitNewPage
---     | UnitEditPage Int
---     | UnitShowPage Int
-
-
-listView : Model -> Html Msg
-listView { query, units } =
+unitsToTable : List Unit -> Model -> Html Msg
+unitsToTable units model =
     -- filter using query afterwards
     let
         table_ =
-            units
-                |> List.map unitView
+            List.map (unitToTr units) units
                 |> tbody []
-                |> (\r -> unitsHeader :: [ r ])
+                |> (\r -> unitsTh :: [ r ])
                 |> table [ class "ui celled table" ]
     in
         div []
             [ h1 [ class "ui header" ] [ text "Units list" ]
             , table_
-            , button [ class "ui button", onClick (Navigate NewPage Message.initModel) ] [ text "New" ]
+            , button [ class "ui button", onClick (Navigate NewPage units initMessage) ] [ text "New" ]
             ]
 
 
-unitsHeader : Html Msg
-unitsHeader =
+unitsTh : Html Msg
+unitsTh =
     thead []
         [ tr []
             [ th [] [ text "ID" ]
@@ -333,22 +275,22 @@ unitsHeader =
         ]
 
 
-unitView : Unit -> Html Msg
-unitView unit =
+unitToTr : List Unit -> Unit -> Html Msg
+unitToTr units unit =
     tr []
         [ td [] [ text unit.id ]
         , td [] [ text unit.name ]
         , td [] [ text unit.initials ]
         , td []
-            [ button [ class "ui button", onClick (Navigate (EditPage unit.id) Message.initModel) ] [ text "Edit" ]
-            , button [ class "ui button", onClick (Navigate (ShowPage unit.id) Message.initModel) ] [ text "Show" ]
+            [ button [ class "ui button", onClick (Navigate (EditPage unit.id) units initMessage) ] [ text "Edit" ]
+            , button [ class "ui button", onClick (Navigate (ShowPage unit.id) units initMessage) ] [ text "Show" ]
             , button [ class "ui button", onClick (Remove unit) ] [ text "Remove" ]
             ]
         ]
 
 
-showView : Model -> String -> Html Msg
-showView model key =
+unitShow : Model -> String -> Html Msg
+unitShow model key =
     div [] [ text ("Showing unit id:" ++ key) ]
 
 
@@ -363,8 +305,8 @@ confirmModalView model =
         ]
 
 
-formView : Model -> Maybe String -> Html Msg
-formView model maybeKey =
+unitForm : Model -> Maybe String -> Html Msg
+unitForm model maybeKey =
     let
         ( action, headerMessage ) =
             if maybeKey == Nothing then
@@ -419,12 +361,6 @@ port removeUnit : Unit -> Cmd msg
 
 
 port unitRemoved : (String -> msg) -> Sub msg
-
-
-port loadUnit : String -> Cmd msg
-
-
-port unitLoaded : (Unit -> msg) -> Sub msg
 
 
 subscriptions : Model -> Sub Msg

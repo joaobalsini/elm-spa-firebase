@@ -3,9 +3,8 @@ port module Material exposing (..)
 import Html exposing (..)
 import Html.Events exposing (..)
 import Html.Attributes exposing (..)
+import Aliases exposing (Unit, Material, Message, initMaterial, initMessage)
 import Navigation
-import Unit
-import Message
 
 
 -- model
@@ -13,15 +12,13 @@ import Message
 
 
 type alias Model =
-    { id : String
-    , name : String
+    { name : String
     , nameError : Maybe String
     , unit_id : String
     , unitError : Maybe String
     , inventory : String
     , inventoryError : Maybe String
     , material : Material
-    , materials : List Material
     , query : String
     , error : Maybe String
     , displayingConfirmDialog : Bool
@@ -55,34 +52,15 @@ subpageToHash subpage =
 -- real model
 
 
-type alias Material =
-    { id : String
-    , name : String
-    , unit_id : Maybe String
-    , inventory : Float
-    }
-
-
-initMaterial : Material
-initMaterial =
-    { id = ""
-    , name = ""
-    , unit_id = Nothing
-    , inventory = 0.0
-    }
-
-
 initModel : Model
 initModel =
-    { id = ""
-    , name = ""
+    { name = ""
     , nameError = Nothing
     , unit_id = ""
     , unitError = Nothing
     , inventory = ""
     , inventoryError = Nothing
     , material = initMaterial
-    , materials = []
     , query = ""
     , error = Nothing
     , displayingConfirmDialog = False
@@ -99,7 +77,7 @@ init =
 
 
 type Msg
-    = Navigate Subpage Message.Model
+    = Navigate Subpage (List Material) Message
     | NameInputChanged String
     | UnitSelectChanged String
     | InventoryInputChanged String
@@ -109,15 +87,6 @@ type Msg
     | Updated Material
     | Remove Material
     | Removed String
-
-
-updateMaterialAtId : Material -> String -> Material -> Material
-updateMaterialAtId updatedMaterial materialId originalMaterial =
-    if originalMaterial.id == materialId then
-        --need to finish: unit = Get unit from list passing unit id
-        { originalMaterial | name = updatedMaterial.name, inventory = updatedMaterial.inventory }
-    else
-        originalMaterial
 
 
 getMaterialByIdFromMaterialsList : List Material -> String -> Maybe Material
@@ -133,35 +102,35 @@ getMaterialByIdFromMaterialsList list id =
                 getMaterialByIdFromMaterialsList xs id
 
 
-update : Msg -> Model -> ( Model, Cmd Msg, Message.Model )
+update : Msg -> Model -> ( Model, Cmd Msg, Message )
 update msg model =
     case msg of
-        Navigate subpage message ->
+        Navigate subpage materials message ->
             case subpage of
                 ShowPage id ->
                     ( model
                     , Navigation.newUrl <| subpageToHash subpage
-                    , Message.initModel
+                    , initMessage
                     )
 
                 EditPage id ->
                     let
                         material =
-                            getMaterialByIdFromMaterialsList model.materials id
+                            getMaterialByIdFromMaterialsList materials id
 
                         materialOrInitMaterial =
                             Maybe.withDefault initMaterial material
                     in
                         --need to finish: unit = Get unit from list passing unit id
-                        ( { model | id = id, unit_id = Maybe.withDefault "" materialOrInitMaterial.unit_id, name = materialOrInitMaterial.name, inventory = toString (materialOrInitMaterial.inventory), material = materialOrInitMaterial }
+                        ( { model | unit_id = Maybe.withDefault "" materialOrInitMaterial.unit_id, name = materialOrInitMaterial.name, inventory = toString (materialOrInitMaterial.inventory), material = materialOrInitMaterial }
                         , Navigation.newUrl <| subpageToHash subpage
-                        , Message.initModel
+                        , initMessage
                         )
 
                 _ ->
                     ( { model | material = initMaterial, name = "", inventory = "", unit_id = "" }
                     , Navigation.newUrl <| subpageToHash subpage
-                    , Message.initModel
+                    , initMessage
                     )
 
         NameInputChanged name_ ->
@@ -178,7 +147,7 @@ update msg model =
                     , material = updatedModel
                   }
                 , Cmd.none
-                , Message.initModel
+                , initMessage
                 )
 
         InventoryInputChanged inventory_ ->
@@ -206,7 +175,7 @@ update msg model =
                     , material = updatedModel
                   }
                 , Cmd.none
-                , Message.initModel
+                , initMessage
                 )
 
         UnitSelectChanged unit_id_ ->
@@ -223,20 +192,14 @@ update msg model =
                     , material = updatedModel
                   }
                 , Cmd.none
-                , Message.initModel
+                , initMessage
                 )
 
         Add material ->
-            ( model, addMaterial material, Message.initModel )
+            ( model, addMaterial material, initMessage )
 
         Added material ->
             let
-                newMaterials =
-                    material :: model.materials
-
-                initMessage =
-                    Message.initModel
-
                 message =
                     { initMessage
                         | messageClass = "positive"
@@ -245,20 +208,13 @@ update msg model =
                         , active = True
                     }
             in
-                ( { model | materials = newMaterials }, Navigation.newUrl "#/materials", message )
+                ( { model | material = initMaterial }, Navigation.newUrl "#/materials", message )
 
         Remove material ->
-            ( model, removeMaterial material, Message.initModel )
+            ( model, removeMaterial material, initMessage )
 
         Removed id ->
             let
-                newMaterials =
-                    List.filter (\material -> material.id /= id)
-                        model.materials
-
-                initMessage =
-                    Message.initModel
-
                 message =
                     { initMessage
                         | messageClass = "positive"
@@ -267,22 +223,14 @@ update msg model =
                         , active = True
                     }
             in
-                ( { model | materials = newMaterials }, Cmd.none, message )
+                ( model, Cmd.none, message )
 
         Update material ->
-            ( model, updateMaterial material, Message.initModel )
+            ( model, updateMaterial material, initMessage )
 
         Updated material ->
             -- create update material
             let
-                -- map puts the element as last parameter for function updateMaterialIfIdMatches
-                newMaterials =
-                    List.map (updateMaterialAtId material material.id) model.materials
-
-                -- this function updates a material element IF the id matches
-                initMessage =
-                    Message.initModel
-
                 message =
                     { initMessage
                         | messageClass = "positive"
@@ -291,16 +239,31 @@ update msg model =
                         , active = True
                     }
             in
-                ( { model | materials = newMaterials }, Navigation.newUrl "#/materials", message )
+                ( { model | material = initMaterial }, Navigation.newUrl "#/materials", message )
 
 
-view : Model -> Subpage -> Html Msg
-view model subpage =
-    div [ class "main" ]
-        [ errorPanel model.error
-        , renderSubPage model subpage
-        , confirmModalView model
-        ]
+view : Model -> List Material -> List Unit -> Subpage -> Html Msg
+view model materials units subpage =
+    let
+        page =
+            case subpage of
+                IndexPage ->
+                    materialsToTable materials model
+
+                NewPage ->
+                    materialForm model units Nothing
+
+                EditPage string ->
+                    materialForm model units (Just string)
+
+                ShowPage string ->
+                    materialShow model string
+    in
+        div [ class "main" ]
+            [ errorPanel model.error
+            , page
+            , confirmModalView model
+            ]
 
 
 errorPanel : Maybe String -> Html a
@@ -316,50 +279,30 @@ errorPanel error =
                 ]
 
 
-renderSubPage : Model -> Subpage -> Html Msg
-renderSubPage model subpage =
-    case subpage of
-        IndexPage ->
-            listView model
-
-        NewPage ->
-            formView model Nothing
-
-        EditPage string ->
-            formView model (Just string)
-
-        ShowPage string ->
-            showView model string
+unitOption : Unit -> Html Msg
+unitOption unit =
+    option [ value unit.id ] [ text (unit.name ++ "(" ++ unit.initials ++ ")") ]
 
 
-
--- type Subpage
---     = MaterialIndexPage
---     | MaterialNewPage
---     | MaterialEditPage Int
---     | MaterialShowPage Int
-
-
-listView : Model -> Html Msg
-listView { query, materials } =
+materialsToTable : List Material -> Model -> Html Msg
+materialsToTable materials model =
     -- filter using query afterwards
     let
         table_ =
-            materials
-                |> List.map materialView
+            List.map (materialToTr materials) materials
                 |> tbody []
-                |> (\r -> materialsHeader :: [ r ])
+                |> (\r -> materialsTh :: [ r ])
                 |> table [ class "ui celled table" ]
     in
         div []
             [ h1 [ class "ui header" ] [ text "Materials list" ]
             , table_
-            , button [ class "ui button", onClick (Navigate NewPage Message.initModel) ] [ text "New" ]
+            , button [ class "ui button", onClick (Navigate NewPage materials initMessage) ] [ text "New" ]
             ]
 
 
-materialsHeader : Html Msg
-materialsHeader =
+materialsTh : Html Msg
+materialsTh =
     thead []
         [ tr []
             [ th [] [ text "ID" ]
@@ -371,23 +314,23 @@ materialsHeader =
         ]
 
 
-materialView : Material -> Html Msg
-materialView material =
+materialToTr : List Material -> Material -> Html Msg
+materialToTr materials material =
     tr []
         [ td [] [ text material.id ]
         , td [] [ text material.name ]
         , td [] [ text (Maybe.withDefault "" material.unit_id) ]
         , td [] [ text <| toString material.inventory ]
         , td []
-            [ button [ class "ui button", onClick (Navigate (EditPage material.id) Message.initModel) ] [ text "Edit" ]
-            , button [ class "ui button", onClick (Navigate (ShowPage material.id) Message.initModel) ] [ text "Show" ]
+            [ button [ class "ui button", onClick (Navigate (EditPage material.id) materials initMessage) ] [ text "Edit" ]
+            , button [ class "ui button", onClick (Navigate (ShowPage material.id) materials initMessage) ] [ text "Show" ]
             , button [ class "ui button", onClick (Remove material) ] [ text "Remove" ]
             ]
         ]
 
 
-showView : Model -> String -> Html Msg
-showView model key =
+materialShow : Model -> String -> Html Msg
+materialShow model key =
     div [] [ text ("Showing material id:" ++ key) ]
 
 
@@ -402,8 +345,8 @@ confirmModalView model =
         ]
 
 
-formView : Model -> Maybe String -> Html Msg
-formView model maybeKey =
+materialForm : Model -> List Unit -> Maybe String -> Html Msg
+materialForm model units maybeKey =
     let
         ( action, headerMessage ) =
             if maybeKey == Nothing then
@@ -426,13 +369,9 @@ formView model maybeKey =
                     ]
                 , div [ class "field" ]
                     [ label [] [ text "UnitId" ]
-                    , input
-                        [ type_ "text"
-                        , value model.unit_id
-                        , onInput UnitSelectChanged
-                        ]
-                        []
-                    , span [] [ text <| Maybe.withDefault "" model.inventoryError ]
+                    , select [ onInput UnitSelectChanged ]
+                        (List.map unitOption units)
+                    , span [] [ text <| Maybe.withDefault "" model.unitError ]
                     ]
                 , div [ class "field" ]
                     [ label [] [ text "Inventory" ]
