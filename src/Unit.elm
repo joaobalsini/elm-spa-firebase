@@ -103,11 +103,19 @@ update msg model =
         Navigate subpage units message ->
             case subpage of
                 ShowPage id ->
-                    -- if unit is Nothing, redirect back and show error
-                    ( model
-                    , Navigation.newUrl <| subpageToHash subpage
-                    , initMessage
-                    )
+                    let
+                        -- if unit is Nothing, redirect back and show error
+                        unit =
+                            getUnitByIdFromUnitsList units id
+
+                        -- if unit is Nothing, redirect back and show error
+                        unitOrClearUnit =
+                            Maybe.withDefault initUnit unit
+                    in
+                        ( { model | unit = unitOrClearUnit }
+                        , Navigation.newUrl <| subpageToHash subpage
+                        , initMessage
+                        )
 
                 EditPage id ->
                     let
@@ -218,13 +226,13 @@ view model units subpage =
                     unitsToTable units model
 
                 NewPage ->
-                    unitForm model Nothing
+                    unitForm model units Nothing
 
                 EditPage string ->
-                    unitForm model (Just string)
+                    unitForm model units (Just string)
 
                 ShowPage string ->
-                    unitShow model string
+                    unitShow model units string
     in
         div [ class "main" ]
             [ errorPanel model.error
@@ -289,9 +297,24 @@ unitToTr units unit =
         ]
 
 
-unitShow : Model -> String -> Html Msg
-unitShow model key =
-    div [] [ text ("Showing unit id:" ++ key) ]
+unitShow : Model -> List Unit -> String -> Html Msg
+unitShow model units key =
+    div [ class "ui items" ]
+        [ div [ class "item" ]
+            [ div [ class "content" ]
+                [ a [ class "header" ] [ text ("Showing unit " ++ model.unit.name) ]
+                , div [ class "meta" ]
+                    [ span [] [ text ("Identifier: " ++ model.unit.id) ] ]
+                , div [ class "meta" ]
+                    [ span [] [ text ("Name: " ++ model.unit.name) ] ]
+                , div [ class "meta" ]
+                    [ span [] [ text ("Initials: " ++ model.unit.initials) ] ]
+                ]
+            ]
+        , button [ class "ui button", onClick (Navigate (EditPage model.unit.id) units initMessage) ] [ text "Edit" ]
+        , button [ class "ui button red", onClick (Remove model.unit) ] [ text "Remove" ]
+        , button [ class "ui button", onClick (Navigate IndexPage units initMessage) ] [ text "List Units" ]
+        ]
 
 
 confirmModalView : Model -> Html Msg
@@ -305,14 +328,23 @@ confirmModalView model =
         ]
 
 
-unitForm : Model -> Maybe String -> Html Msg
-unitForm model maybeKey =
+unitForm : Model -> List Unit -> Maybe String -> Html Msg
+unitForm model units maybeKey =
     let
-        ( action, headerMessage ) =
-            if maybeKey == Nothing then
-                ( Add model.unit, "New unit" )
-            else
-                ( Update model.unit, "Editing unit with id: " ++ (Maybe.withDefault "" maybeKey) )
+        ( action, headerMessage, buttons ) =
+            let
+                sureButtons =
+                    [ button [ type_ "submit", class "ui blue submit button" ] [ text "Save" ]
+                    , button [ class "ui button", onClick (Navigate IndexPage units initMessage) ] [ text "List Units" ]
+                    ]
+
+                maybeButton =
+                    [ button [ class "ui button", onClick (Navigate (ShowPage model.unit.id) units initMessage) ] [ text "Show" ] ]
+            in
+                if maybeKey == Nothing then
+                    ( Add model.unit, "New unit", sureButtons )
+                else
+                    ( Update model.unit, "Editing unit with id: " ++ (Maybe.withDefault "" maybeKey), (List.append sureButtons maybeButton) )
     in
         Html.form [ class "ui large form", onSubmit action ]
             [ div [ class "ui stacked segment" ]
@@ -337,10 +369,7 @@ unitForm model maybeKey =
                         []
                     , span [] [ text <| Maybe.withDefault "" model.initialsError ]
                     ]
-                , div []
-                    [ label [] []
-                    , button [ type_ "submit", class "ui fluid large teal submit button" ] [ text "Save" ]
-                    ]
+                , div [] buttons
                 ]
             ]
 

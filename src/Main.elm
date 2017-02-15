@@ -274,7 +274,9 @@ update msg model =
                 )
 
         UnitMsg msg ->
+            -- Here we handle the units list, below we do the same for the materials list --
             case msg of
+                -- We "intercept" the message to unit, in case its Added, we add the unit to the units list and pass the message to unit module
                 Unit.Added unit ->
                     let
                         newUnits =
@@ -287,6 +289,7 @@ update msg model =
                         , Cmd.map UnitMsg cmd
                         )
 
+                -- in case its Updated we update the unit in the units list and pass the message to unit module
                 Unit.Updated updatedUnit ->
                     let
                         newUnits =
@@ -299,6 +302,7 @@ update msg model =
                         , Cmd.map UnitMsg cmd
                         )
 
+                -- in case its Removed we remove the unit from the units list and pass the message to unit module
                 Unit.Removed id ->
                     let
                         newUnits =
@@ -312,6 +316,7 @@ update msg model =
                         , Cmd.map UnitMsg cmd
                         )
 
+                -- otherwise we just pass the message to unit module
                 _ ->
                     let
                         ( unitModel, cmd, message ) =
@@ -322,6 +327,7 @@ update msg model =
                         )
 
         MaterialMsg msg ->
+            -- Here we handle the materials list, please check the units list above for comments
             case msg of
                 Material.Added material ->
                     let
@@ -398,6 +404,7 @@ update msg model =
 view : Model -> Html Msg
 view model =
     let
+        -- get the page through the view method of each Module passing the parameters needed and render that page
         page =
             case model.route of
                 IndexRoute ->
