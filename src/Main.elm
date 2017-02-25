@@ -11,6 +11,7 @@ import Index
 import Login
 import Message
 import Aliases
+import Routes exposing (..)
 
 
 main : Program Never Model Msg
@@ -29,6 +30,7 @@ main =
 
 type alias Model =
     { route : Route
+    , lastRoute : Route
     , login : Login.Model
     , index : Index.Model
     , unit : Unit.Model
@@ -62,6 +64,7 @@ init location =
 
         initModel =
             { route = route
+            , lastRoute = IndexRoute
             , login = loginInitModel
             , index = indexInitModel
             , message = Message.initModel
@@ -87,20 +90,6 @@ init location =
 -- URL PARSING
 
 
-type Route
-    = IndexRoute
-    | LoginRoute
-    | UnitIndexRoute
-    | UnitShowRoute String
-    | UnitNewRoute
-    | UnitEditRoute String
-    | MaterialIndexRoute
-    | MaterialShowRoute String
-    | MaterialNewRoute
-    | MaterialEditRoute String
-    | NotFoundRoute
-
-
 matchers : Url.Parser (Route -> a) a
 matchers =
     Url.oneOf
@@ -120,70 +109,22 @@ matchers =
 locationToRoute : Location -> Route
 locationToRoute location =
     case (Url.parseHash matchers location) of
-        Just route ->
-            route
-
         Nothing ->
             NotFoundRoute
 
+        Just route ->
+            route
 
 
--- type Route
---     = IndexRoute
---     | LoginRoute
---     | UnitIndexRoute
---     | UnitShowRoute String
---     | UnitNewRoute
---     | UnitEditRoute String
---     | MaterialIndexRoute
---     | MaterialShowRoute String
---     | MaterialNewRoute
---     | MaterialEditRoute String
---     | NotFoundRoute
 
-
-routeToHash : Route -> String
-routeToHash route =
-    case route of
-        IndexRoute ->
-            "#/"
-
-        LoginRoute ->
-            "#/login"
-
-        UnitIndexRoute ->
-            "#/units"
-
-        UnitNewRoute ->
-            "#/units/new"
-
-        UnitShowRoute id ->
-            "#/units/" ++ id
-
-        UnitEditRoute id ->
-            "#/units/edit/" ++ id
-
-        MaterialIndexRoute ->
-            "#/materials"
-
-        MaterialNewRoute ->
-            "#/materials/new"
-
-        MaterialShowRoute id ->
-            "#/materials/" ++ id
-
-        MaterialEditRoute id ->
-            "#/materials/edit/" ++ id
-
-        NotFoundRoute ->
-            "#notfound"
+-- this function is triggered whenever the user changes the url
 
 
 locationToMsg : Navigation.Location -> Msg
 locationToMsg location =
     location
         |> locationToRoute
-        |> ChangePage location.hash
+        |> ChangePage
 
 
 updateUnitAtId : Aliases.Unit -> String -> Aliases.Unit -> Aliases.Unit
@@ -234,7 +175,7 @@ getMaterialByIdFromList list id =
 
 type Msg
     = Navigate Route
-    | ChangePage String Route
+    | ChangePage Route
     | IndexMsg Index.Msg
     | LoginMsg Login.Msg
     | UnitMsg Unit.Msg
@@ -245,15 +186,73 @@ type Msg
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        -- Navigate is used once a user clicks in a link
         Navigate route ->
-            ( { model | route = route }, Navigation.newUrl <| routeToHash route )
+            let
+                ( model_, msg_ ) =
+                    update (ChangePage route) model
+            in
+                ( model_, Navigation.newUrl <| routeToHash route )
 
-        ChangePage locationHashIfNotFound route ->
-            (if route == NotFoundRoute && locationHashIfNotFound /= "#notfound" then
-                ( { model | route = route }, Navigation.newUrl "#notfound" )
-             else
-                ( { model | route = route }, Cmd.none )
-            )
+        -- ChangePage is used once a user changes the URL manually
+        ChangePage route ->
+            let
+                lastRoute =
+                    model.route
+            in
+                case route of
+                    -- We need to process part of the message here, as the array of units is "Main module" responsability
+                    -- Why don't we keep the array of units inside unitModel?
+                    -- Because some other modules will also need it and we want to avoid duplications as it would tend to bug
+                    -- We could also create "message interceptors" for each message of the subModule but I only need to pre process some of them
+                    -- As the UnitShow and UnitEdit need to be pre validated (as the user could, for example)
+                    -- And, in case of Unit Edit we NEED to set the unit inside the unit module as we need to interact of it inside the unit view, when inputsChanged for example
+                    UnitShowRoute id ->
+                        let
+                            unit =
+                                getUnitByIdFromList model.units id
+
+                            -- if unit is not found redirect back and show error message
+                            ( updatedModel, cmd ) =
+                                if unit == Nothing then
+                                    let
+                                        ( updatedModel, cmd ) =
+                                            update (Navigate lastRoute) model
+                                    in
+                                        ( { updatedModel | message = Aliases.errorMessage ("Unit with id " ++ id ++ " not found!") }, cmd )
+                                else
+                                    let
+                                        ( unitModel, cmd, message ) =
+                                            Unit.update (Unit.PrepareView (Unit.ShowPage (Maybe.withDefault Aliases.initUnit unit)) Aliases.initMessage) model.unit
+                                    in
+                                        ( { model | route = route, lastRoute = lastRoute, unit = unitModel }, Cmd.none )
+                        in
+                            ( updatedModel, cmd )
+
+                    UnitEditRoute id ->
+                        let
+                            unit =
+                                getUnitByIdFromList model.units id
+
+                            -- if unit is not found redirect back and show error message
+                            ( updatedModel, cmd ) =
+                                if unit == Nothing then
+                                    let
+                                        ( updatedModel, cmd ) =
+                                            update (Navigate lastRoute) model
+                                    in
+                                        ( { updatedModel | message = Aliases.errorMessage ("Unit with id " ++ id ++ " not found!") }, cmd )
+                                else
+                                    let
+                                        ( unitModel, cmd, message ) =
+                                            Unit.update (Unit.PrepareView (Unit.EditPage (Maybe.withDefault Aliases.initUnit unit)) Aliases.initMessage) model.unit
+                                    in
+                                        ( { model | route = route, lastRoute = lastRoute, unit = unitModel }, Cmd.none )
+                        in
+                            ( updatedModel, cmd )
+
+                    _ ->
+                        ( { model | route = route, lastRoute = lastRoute }, Cmd.none )
 
         IndexMsg msg ->
             let
@@ -417,19 +416,33 @@ view model =
 
                 UnitIndexRoute ->
                     Html.map UnitMsg
-                        (Unit.view model.unit model.units Unit.IndexPage)
+                        (Unit.view model.unit (Unit.IndexPage model.units))
 
                 UnitShowRoute id ->
-                    Html.map UnitMsg
-                        (Unit.view model.unit model.units (Unit.ShowPage id))
+                    let
+                        unit =
+                            getUnitByIdFromList model.units id
+
+                        unitOrClearUnit =
+                            Maybe.withDefault Aliases.initUnit unit
+                    in
+                        Html.map UnitMsg
+                            (Unit.view model.unit (Unit.ShowPage unitOrClearUnit))
 
                 UnitNewRoute ->
                     Html.map UnitMsg
-                        (Unit.view model.unit model.units Unit.NewPage)
+                        (Unit.view model.unit (Unit.NewPage))
 
                 UnitEditRoute id ->
-                    Html.map UnitMsg
-                        (Unit.view model.unit model.units (Unit.EditPage id))
+                    let
+                        unit =
+                            getUnitByIdFromList model.units id
+
+                        unitOrClearUnit =
+                            Maybe.withDefault Aliases.initUnit unit
+                    in
+                        Html.map UnitMsg
+                            (Unit.view model.unit (Unit.EditPage unitOrClearUnit))
 
                 MaterialIndexRoute ->
                     Html.map MaterialMsg

@@ -4,7 +4,8 @@ import Html exposing (..)
 import Html.Events exposing (..)
 import Html.Attributes exposing (..)
 import Navigation
-import Aliases exposing (Unit, initUnit, Message, initMessage)
+import Aliases exposing (Unit, initUnit, Message, initMessage, successMessage)
+import Routes exposing (..)
 
 
 -- model
@@ -20,34 +21,31 @@ type alias Model =
     , query : String
     , error : Maybe String
     , displayingConfirmDialog : Bool
+    , redirectRoute : Route
     }
 
 
 type Subpage
-    = IndexPage
+    = IndexPage (List Unit)
     | NewPage
-    | EditPage String
-    | ShowPage String
+    | EditPage Unit
+    | ShowPage Unit
 
 
 subpageToHash : Subpage -> String
 subpageToHash subpage =
     case subpage of
-        IndexPage ->
-            "#/units"
+        IndexPage units ->
+            routeToHash UnitIndexRoute
 
         NewPage ->
-            "#/units/new"
+            routeToHash UnitNewRoute
 
-        ShowPage id ->
-            "#/units/" ++ id
+        ShowPage unit ->
+            routeToHash (UnitShowRoute unit.id)
 
-        EditPage id ->
-            "#/units/edit/" ++ id
-
-
-
--- real model
+        EditPage unit ->
+            routeToHash (UnitEditRoute unit.id)
 
 
 initModel : Model
@@ -60,6 +58,7 @@ initModel =
     , query = ""
     , error = Nothing
     , displayingConfirmDialog = False
+    , redirectRoute = UnitIndexRoute
     }
 
 
@@ -73,7 +72,8 @@ init =
 
 
 type Msg
-    = Navigate Subpage (List Unit) Message
+    = PrepareView Subpage Message
+    | NavigateRoute Route
     | NameInputChanged String
     | InitialsInputChanged String
     | Add Unit
@@ -84,58 +84,28 @@ type Msg
     | Removed String
 
 
-getUnitByIdFromUnitsList : List Unit -> String -> Maybe Unit
-getUnitByIdFromUnitsList list id =
-    case list of
-        [] ->
-            Nothing
-
-        x :: xs ->
-            if x.id == id then
-                Just x
-            else
-                getUnitByIdFromUnitsList xs id
-
-
 update : Msg -> Model -> ( Model, Cmd Msg, Message )
 update msg model =
     case msg of
-        Navigate subpage units message ->
+        PrepareView subpage message ->
             case subpage of
-                ShowPage id ->
-                    let
-                        -- if unit is Nothing, redirect back and show error
-                        unit =
-                            getUnitByIdFromUnitsList units id
-
-                        -- if unit is Nothing, redirect back and show error
-                        unitOrClearUnit =
-                            Maybe.withDefault initUnit unit
-                    in
-                        ( { model | unit = unitOrClearUnit }
-                        , Navigation.newUrl <| subpageToHash subpage
-                        , initMessage
-                        )
-
-                EditPage id ->
-                    let
-                        unit =
-                            getUnitByIdFromUnitsList units id
-
-                        -- if unit is Nothing, redirect back and show error
-                        unitOrClearUnit =
-                            Maybe.withDefault initUnit unit
-                    in
-                        ( { model | name = unitOrClearUnit.name, initials = unitOrClearUnit.initials, unit = unitOrClearUnit }
-                        , Navigation.newUrl <| subpageToHash subpage
-                        , initMessage
-                        )
-
-                _ ->
-                    ( { model | unit = initUnit, name = "", initials = "" }
-                    , Navigation.newUrl <| subpageToHash subpage
+                EditPage unit ->
+                    ( { model | name = unit.name, initials = unit.initials, unit = unit }
+                    , Cmd.none
                     , initMessage
                     )
+
+                _ ->
+                    ( { model | unit = initUnit, name = initUnit.name, initials = initUnit.initials }
+                    , Cmd.none
+                    , initMessage
+                    )
+
+        NavigateRoute route ->
+            ( model
+            , Navigation.newUrl <| routeToHash route
+            , initMessage
+            )
 
         NameInputChanged name_ ->
             let
@@ -175,64 +145,37 @@ update msg model =
             ( model, addUnit unit, initMessage )
 
         Added unit ->
-            let
-                message =
-                    { initMessage
-                        | messageClass = "positive"
-                        , header = "Sucess added"
-                        , text = "Unit successfully added"
-                        , active = True
-                    }
-            in
-                ( { model | unit = initUnit }, Navigation.newUrl "#/units", message )
+            ( { model | unit = initUnit }, Navigation.newUrl (routeToHash model.redirectRoute), successMessage "Unit successfully added" )
 
         Remove unit ->
             ( model, removeUnit unit, initMessage )
 
         Removed id ->
-            let
-                message =
-                    { initMessage
-                        | messageClass = "positive"
-                        , header = "Sucess removed"
-                        , text = "Unit successfully removed"
-                        , active = True
-                    }
-            in
-                ( model, Cmd.none, message )
+            ( model, Cmd.none, successMessage "Unit successfully removed" )
 
         Update unit ->
             ( model, updateUnit unit, initMessage )
 
         Updated updatedUnit ->
-            let
-                message =
-                    { initMessage
-                        | messageClass = "positive"
-                        , header = "Sucess updated"
-                        , text = "Unit successfully updated"
-                        , active = True
-                    }
-            in
-                ( { model | unit = initUnit }, Navigation.newUrl "#/units", message )
+            ( { model | unit = initUnit }, Navigation.newUrl (routeToHash model.redirectRoute), successMessage "Unit successfully updated" )
 
 
-view : Model -> List Unit -> Subpage -> Html Msg
-view model units subpage =
+view : Model -> Subpage -> Html Msg
+view model subpage =
     let
         page =
             case subpage of
-                IndexPage ->
+                IndexPage units ->
                     unitsToTable units model
 
                 NewPage ->
-                    unitForm model units Nothing
+                    unitForm model Nothing
 
-                EditPage string ->
-                    unitForm model units (Just string)
+                EditPage unit ->
+                    unitForm model (Just unit)
 
-                ShowPage string ->
-                    unitShow model units string
+                ShowPage unit ->
+                    unitShow unit
     in
         div [ class "main" ]
             [ errorPanel model.error
@@ -259,7 +202,7 @@ unitsToTable units model =
     -- filter using query afterwards
     let
         table_ =
-            List.map (unitToTr units) units
+            List.map (unitToTr) units
                 |> tbody []
                 |> (\r -> unitsTh :: [ r ])
                 |> table [ class "ui celled table" ]
@@ -267,7 +210,7 @@ unitsToTable units model =
         div []
             [ h1 [ class "ui header" ] [ text "Units list" ]
             , table_
-            , button [ class "ui button", onClick (Navigate NewPage units initMessage) ] [ text "New" ]
+            , button [ class "ui button", onClick (NavigateRoute (UnitNewRoute)) ] [ text "New" ]
             ]
 
 
@@ -283,37 +226,37 @@ unitsTh =
         ]
 
 
-unitToTr : List Unit -> Unit -> Html Msg
-unitToTr units unit =
+unitToTr : Unit -> Html Msg
+unitToTr unit =
     tr []
         [ td [] [ text unit.id ]
         , td [] [ text unit.name ]
         , td [] [ text unit.initials ]
         , td []
-            [ button [ class "ui button", onClick (Navigate (EditPage unit.id) units initMessage) ] [ text "Edit" ]
-            , button [ class "ui button", onClick (Navigate (ShowPage unit.id) units initMessage) ] [ text "Show" ]
+            [ button [ class "ui button", onClick (NavigateRoute (UnitEditRoute unit.id)) ] [ text "Edit" ]
+            , button [ class "ui button", onClick (NavigateRoute (UnitShowRoute unit.id)) ] [ text "Show" ]
             , button [ class "ui button", onClick (Remove unit) ] [ text "Remove" ]
             ]
         ]
 
 
-unitShow : Model -> List Unit -> String -> Html Msg
-unitShow model units key =
+unitShow : Unit -> Html Msg
+unitShow unit =
     div [ class "ui items" ]
         [ div [ class "item" ]
             [ div [ class "content" ]
-                [ a [ class "header" ] [ text ("Showing unit " ++ model.unit.name) ]
+                [ a [ class "header" ] [ text ("Showing unit " ++ unit.name) ]
                 , div [ class "meta" ]
-                    [ span [] [ text ("Identifier: " ++ model.unit.id) ] ]
+                    [ span [] [ text ("Identifier: " ++ unit.id) ] ]
                 , div [ class "meta" ]
-                    [ span [] [ text ("Name: " ++ model.unit.name) ] ]
+                    [ span [] [ text ("Name: " ++ unit.name) ] ]
                 , div [ class "meta" ]
-                    [ span [] [ text ("Initials: " ++ model.unit.initials) ] ]
+                    [ span [] [ text ("Initials: " ++ unit.initials) ] ]
                 ]
             ]
-        , button [ class "ui button", onClick (Navigate (EditPage model.unit.id) units initMessage) ] [ text "Edit" ]
-        , button [ class "ui button red", onClick (Remove model.unit) ] [ text "Remove" ]
-        , button [ class "ui button", onClick (Navigate IndexPage units initMessage) ] [ text "List Units" ]
+        , button [ class "ui button", onClick (NavigateRoute (UnitEditRoute unit.id)) ] [ text "Edit" ]
+        , button [ class "ui button red", onClick (Remove unit) ] [ text "Remove" ]
+        , button [ class "ui button", onClick (NavigateRoute UnitIndexRoute) ] [ text "List Units" ]
         ]
 
 
@@ -328,23 +271,23 @@ confirmModalView model =
         ]
 
 
-unitForm : Model -> List Unit -> Maybe String -> Html Msg
-unitForm model units maybeKey =
+unitForm : Model -> Maybe Unit -> Html Msg
+unitForm model maybeUnit =
     let
         ( action, headerMessage, buttons ) =
             let
                 sureButtons =
                     [ button [ type_ "submit", class "ui blue submit button" ] [ text "Save" ]
-                    , button [ class "ui button", onClick (Navigate IndexPage units initMessage) ] [ text "List Units" ]
+                    , a [ class "ui button", onClick (NavigateRoute UnitIndexRoute) ] [ text "List Units" ]
                     ]
 
                 maybeButton =
-                    [ button [ class "ui button", onClick (Navigate (ShowPage model.unit.id) units initMessage) ] [ text "Show" ] ]
+                    [ a [ class "ui button", onClick (NavigateRoute (UnitShowRoute (Maybe.withDefault initUnit maybeUnit).id)) ] [ text "Show" ] ]
             in
-                if maybeKey == Nothing then
+                if maybeUnit == Nothing then
                     ( Add model.unit, "New unit", sureButtons )
                 else
-                    ( Update model.unit, "Editing unit with id: " ++ (Maybe.withDefault "" maybeKey), (List.append sureButtons maybeButton) )
+                    ( Update model.unit, "Editing unit with id: " ++ (Maybe.withDefault initUnit maybeUnit).id, (List.append sureButtons maybeButton) )
     in
         Html.form [ class "ui large form", onSubmit action ]
             [ div [ class "ui stacked segment" ]

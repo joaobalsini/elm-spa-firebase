@@ -1,4 +1,4 @@
-port module Aliases exposing (..)
+module Aliases exposing (..)
 
 
 type alias Unit =
@@ -30,6 +30,26 @@ initMessage =
     , header = ""
     , text = ""
     , active = False
+    }
+
+
+errorMessage : String -> Message
+errorMessage text =
+    { initMessage
+        | messageClass = "negative"
+        , header = "Error"
+        , text = text
+        , active = True
+    }
+
+
+successMessage : String -> Message
+successMessage text =
+    { initMessage
+        | messageClass = "positive"
+        , header = "Success"
+        , text = text
+        , active = True
     }
 
 
