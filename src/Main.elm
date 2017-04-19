@@ -470,7 +470,19 @@ view model =
             [ div [ class "ui fixed inverted menu" ] [ pageHeader model ]
             , Html.map MessageMsg (Message.view model.message)
             , div [ class "ui main text container" ] [ page ]
+            , confirmModalView model
             ]
+
+
+confirmModalView : Model -> Html Msg
+confirmModalView model =
+    div [ class "ui modal hidden" ]
+        [ div [ class "ui header" ] [ text "Are you sure?" ]
+        , div [ class "actions" ]
+            [ div [ class "ui red cancel button" ] [ text "Nope" ]
+            , div [ class "ui green ok button" ] [ text "Yep" ]
+            ]
+        ]
 
 
 pageHeader : Model -> Html Msg

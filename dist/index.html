@@ -43,6 +43,27 @@
 
     <script>
     var app = Elm.Main.fullscreen();
+    var successMessage = function(text)
+    {
+        message = {
+            messageClass: "positive",
+            header: "Success",
+            text: text,
+            active: true
+        }
+        app.ports.portMessage.send(message)
+    }
+
+    var errorMessage = function(text)
+    {
+        message = {
+            messageClass: "negative",
+            header: "Error",
+            text: text,
+            active: true
+        }
+        app.ports.portMessage.send(message)
+    }
 
     //Materials
     app.ports.addMaterial.subscribe(function(material){
@@ -50,14 +71,7 @@
         .then(function(data){
 
         }, function(err){
-            message = {
-                messageClass: "error",
-                header: "Error adding Material",
-                text: err.code,
-                active: true
-            }
-
-            app.ports.errorMessage.send(message)
+            errorMessage( "Error adding Material:"+err)
         });
     });
     app.ports.updateMaterial.subscribe(function(material){
@@ -65,14 +79,7 @@
         .then(function(response){
 
         }, function(err){
-            message = {
-                messageClass: "error",
-                header: "Error updating Material",
-                text: err.code,
-                active: true
-            }
-
-            app.ports.errorMessage.send(message)
+            errorMessage( "Error updating Material:"+err)
         });
     });
     app.ports.removeMaterial.subscribe(function(material){
@@ -87,14 +94,7 @@
                 .then(function(response){
 
                 }, function(err) {
-                    message = {
-                        messageClass: "error",
-                        header: "Error removing Material",
-                        text: err.code,
-                        active: true
-                    }
-
-                    app.ports.errorMessage.send(message)
+                  errorMessage( "Error removing Material:"+err)
                 });
             }
           })
@@ -122,14 +122,7 @@
         .then(function(data){
 
         }, function(err){
-            message = {
-                messageClass: "error",
-                header: "Error adding Unit",
-                text: err.code,
-                active: true
-            }
-
-            app.ports.errorMessage.send(message)
+            merrorMessage( "Error adding Unit:"+err)
         });
     });
     app.ports.updateUnit.subscribe(function(unit){
@@ -137,14 +130,7 @@
         .then(function(response){
 
         }, function(err){
-            message = {
-                messageClass: "error",
-                header: "Error updating Unit",
-                text: err.code,
-                active: true
-            }
-
-            app.ports.errorMessage.send(message)
+            errorMessage( "Error updating Unit:"+err)
         });
     });
     app.ports.removeUnit.subscribe(function(unit){
@@ -159,14 +145,7 @@
                 .then(function(response){
 
                 }, function(err) {
-                    message = {
-                        messageClass: "error",
-                        header: "Error removing Unit",
-                        text: err.code,
-                        active: true
-                    }
-
-                    app.ports.errorMessage.send(message)
+                    errorMessage( "Error removing Unit:"+err)
                 });
             }
           })

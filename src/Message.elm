@@ -65,11 +65,11 @@ view model =
         render
 
 
-port errorMessage : (Model -> msg) -> Sub msg
+port portMessage : (Model -> msg) -> Sub msg
 
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        [ errorMessage Show
+        [ portMessage Show
         ]
