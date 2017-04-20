@@ -18,6 +18,26 @@ initUnit =
     }
 
 
+type alias UnitDB =
+    { id : String
+    , name : String
+    , initials : String
+    }
+
+
+getUnitByIdFromList : List Unit -> String -> Maybe Unit
+getUnitByIdFromList list id =
+    case list of
+        [] ->
+            Nothing
+
+        x :: xs ->
+            if x.id == id then
+                Just x
+            else
+                getUnitByIdFromList xs id
+
+
 type alias Message =
     { messageClass : String
     , header : String
@@ -78,46 +98,25 @@ initMaterial =
     }
 
 
+getMaterialByIdFromList : List Material -> String -> Maybe Material
+getMaterialByIdFromList list id =
+    case list of
+        [] ->
+            Nothing
+
+        x :: xs ->
+            if x.id == id then
+                Just x
+            else
+                getMaterialByIdFromList xs id
+
+
 type alias MaterialDB =
     { id : String
     , name : String
     , unit_id : Maybe String
     , inventory : Float
     }
-
-
-parseMaterialFromDB : MaterialDB -> Material
-parseMaterialFromDB materialDb =
-    let
-        -- which fields needs special parsing first?
-        material : Material
-        material =
-            { id = materialDb.id
-            , name = materialDb.name
-            , unit_id = materialDb.unit_id
-            , inventory = materialDb.inventory
-            }
-    in
-        material
-
-
-
--- format from system to db (trust the system)
-
-
-formatMaterialToDB : Material -> MaterialDB
-formatMaterialToDB material =
-    let
-        -- which fields needs special parsing first?
-        materialDb : MaterialDB
-        materialDb =
-            { id = material.id
-            , name = material.name
-            , unit_id = material.unit_id
-            , inventory = material.inventory
-            }
-    in
-        materialDb
 
 
 stringToFloatBrazilFormat : String -> Maybe Float

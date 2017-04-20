@@ -48,8 +48,7 @@ function updateMaterial(material){
   return promise;
 }
 
-function deleteMaterial(material){
-  var id = material.id;
+function deleteMaterial(id){
   var promise = database
     .ref(MATERIALSPATH + "/" + id)
     .remove();

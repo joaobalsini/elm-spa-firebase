@@ -82,7 +82,7 @@
             errorMessage( "Error updating Material:"+err)
         });
     });
-    app.ports.removeMaterial.subscribe(function(material){
+    app.ports.removeMaterial.subscribe(function(id){
         $('.ui.modal')
           .modal({
             closable  : false,
@@ -90,7 +90,7 @@
               return true;
             },
             onApprove : function() {
-                deleteMaterial(material)
+                deleteMaterial(id)
                 .then(function(response){
 
                 }, function(err) {

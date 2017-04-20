@@ -5,12 +5,12 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Navigation exposing (Location)
 import UrlParser as Url exposing ((</>), (<?>), top)
-import Material
-import Unit
+import MaterialModule
+import UnitModule
 import Index
 import Login
 import Message
-import Aliases
+import Aliases exposing (..)
 import Routes exposing (..)
 
 
@@ -33,9 +33,9 @@ type alias Model =
     , lastRoute : Route
     , login : Login.Model
     , index : Index.Model
-    , unit : Unit.Model
+    , unit : UnitModule.Model
     , message : Message.Model
-    , material : Material.Model
+    , material : MaterialModule.Model
     , units : List Aliases.Unit
     , materials : List Aliases.Material
     }
@@ -54,10 +54,10 @@ init location =
             Login.init
 
         ( unitInitModel, unitCmd ) =
-            Unit.init
+            UnitModule.init
 
         ( materialInitModel, materialCmd ) =
-            Material.init
+            MaterialModule.init
 
         ( messageInitModel, messageCmd ) =
             Message.init
@@ -135,19 +135,6 @@ updateUnitAtId updatedElement elementId originalElement =
         originalElement
 
 
-getUnitByIdFromList : List Aliases.Unit -> String -> Maybe Aliases.Unit
-getUnitByIdFromList list id =
-    case list of
-        [] ->
-            Nothing
-
-        x :: xs ->
-            if x.id == id then
-                Just x
-            else
-                getUnitByIdFromList xs id
-
-
 updateMaterialAtId : Aliases.Material -> String -> Aliases.Material -> Aliases.Material
 updateMaterialAtId updatedElement elementId originalElement =
     if originalElement.id == elementId then
@@ -156,17 +143,22 @@ updateMaterialAtId updatedElement elementId originalElement =
         originalElement
 
 
-getMaterialByIdFromList : List Aliases.Material -> String -> Maybe Aliases.Material
-getMaterialByIdFromList list id =
-    case list of
-        [] ->
-            Nothing
+parseMaterialFromDB : Model -> MaterialDB -> Material
+parseMaterialFromDB model materialDb =
+    let
+        teste =
+            Debug.log (Maybe.withDefault "" materialDb.unit_id) "parseMaterialFromDB"
 
-        x :: xs ->
-            if x.id == id then
-                Just x
-            else
-                getMaterialByIdFromList xs id
+        -- which fields needs special parsing first?
+        material : Material
+        material =
+            { id = materialDb.id
+            , name = materialDb.name
+            , unit_id = materialDb.unit_id
+            , inventory = materialDb.inventory
+            }
+    in
+        material
 
 
 
@@ -178,8 +170,8 @@ type Msg
     | ChangePage Route
     | IndexMsg Index.Msg
     | LoginMsg Login.Msg
-    | UnitMsg Unit.Msg
-    | MaterialMsg Material.Msg
+    | UnitMsg UnitModule.Msg
+    | MaterialMsg MaterialModule.Msg
     | MessageMsg Message.Msg
 
 
@@ -223,7 +215,7 @@ update msg model =
                                 else
                                     let
                                         ( unitModel, cmd, message ) =
-                                            Unit.update (Unit.PrepareView (Unit.ShowPage (Maybe.withDefault Aliases.initUnit unit)) Aliases.initMessage) model.unit
+                                            UnitModule.update (UnitModule.PrepareView (UnitModule.ShowPage (Maybe.withDefault Aliases.initUnit unit)) model.units Aliases.initMessage) model.unit
                                     in
                                         ( { model | route = route, lastRoute = lastRoute, unit = unitModel }, Cmd.none )
                         in
@@ -245,9 +237,53 @@ update msg model =
                                 else
                                     let
                                         ( unitModel, cmd, message ) =
-                                            Unit.update (Unit.PrepareView (Unit.EditPage (Maybe.withDefault Aliases.initUnit unit)) Aliases.initMessage) model.unit
+                                            UnitModule.update (UnitModule.PrepareView (UnitModule.EditPage (Maybe.withDefault Aliases.initUnit unit)) model.units Aliases.initMessage) model.unit
                                     in
                                         ( { model | route = route, lastRoute = lastRoute, unit = unitModel }, Cmd.none )
+                        in
+                            ( updatedModel, cmd )
+
+                    MaterialShowRoute id ->
+                        let
+                            material =
+                                getMaterialByIdFromList model.materials id
+
+                            -- if material is not found redirect back and show error message
+                            ( updatedModel, cmd ) =
+                                if material == Nothing then
+                                    let
+                                        ( updatedModel, cmd ) =
+                                            update (Navigate lastRoute) model
+                                    in
+                                        ( { updatedModel | message = Aliases.errorMessage ("Material with id " ++ id ++ " not found!") }, cmd )
+                                else
+                                    let
+                                        ( materialModel, cmd, message ) =
+                                            MaterialModule.update (MaterialModule.PrepareView (MaterialModule.ShowPage (Maybe.withDefault Aliases.initMaterial material)) model.materials Aliases.initMessage) model.material
+                                    in
+                                        ( { model | route = route, lastRoute = lastRoute, material = materialModel }, Cmd.none )
+                        in
+                            ( updatedModel, cmd )
+
+                    MaterialEditRoute id ->
+                        let
+                            material =
+                                getMaterialByIdFromList model.materials id
+
+                            -- if material is not found redirect back and show error message
+                            ( updatedModel, cmd ) =
+                                if material == Nothing then
+                                    let
+                                        ( updatedModel, cmd ) =
+                                            update (Navigate lastRoute) model
+                                    in
+                                        ( { updatedModel | message = Aliases.errorMessage ("Material with id " ++ id ++ " not found!") }, cmd )
+                                else
+                                    let
+                                        ( materialModel, cmd, message ) =
+                                            MaterialModule.update (MaterialModule.PrepareView (MaterialModule.EditPage (Maybe.withDefault Aliases.initMaterial material)) model.materials Aliases.initMessage) model.material
+                                    in
+                                        ( { model | route = route, lastRoute = lastRoute, material = materialModel }, Cmd.none )
                         in
                             ( updatedModel, cmd )
 
@@ -276,40 +312,40 @@ update msg model =
             -- Here we handle the units list, below we do the same for the materials list --
             case msg of
                 -- We "intercept" the message to unit, in case its Added, we add the unit to the units list and pass the message to unit module
-                Unit.Added unit ->
+                UnitModule.Added unit ->
                     let
                         newUnits =
                             unit :: model.units
 
                         ( unitModel, cmd, message ) =
-                            Unit.update msg model.unit
+                            UnitModule.update msg model.unit
                     in
                         ( { model | unit = unitModel, message = message, units = newUnits }
                         , Cmd.map UnitMsg cmd
                         )
 
                 -- in case its Updated we update the unit in the units list and pass the message to unit module
-                Unit.Updated updatedUnit ->
+                UnitModule.Updated updatedUnit ->
                     let
                         newUnits =
                             List.map (updateUnitAtId updatedUnit updatedUnit.id) model.units
 
                         ( unitModel, cmd, message ) =
-                            Unit.update msg model.unit
+                            UnitModule.update msg model.unit
                     in
                         ( { model | unit = unitModel, message = message, units = newUnits }
                         , Cmd.map UnitMsg cmd
                         )
 
                 -- in case its Removed we remove the unit from the units list and pass the message to unit module
-                Unit.Removed id ->
+                UnitModule.Removed id ->
                     let
                         newUnits =
                             List.filter (\unit -> unit.id /= id)
                                 model.units
 
                         ( unitModel, cmd, message ) =
-                            Unit.update msg model.unit
+                            UnitModule.update msg model.unit
                     in
                         ( { model | unit = unitModel, message = message, units = newUnits }
                         , Cmd.map UnitMsg cmd
@@ -319,7 +355,7 @@ update msg model =
                 _ ->
                     let
                         ( unitModel, cmd, message ) =
-                            Unit.update msg model.unit
+                            UnitModule.update msg model.unit
                     in
                         ( { model | unit = unitModel, message = message }
                         , Cmd.map UnitMsg cmd
@@ -328,38 +364,38 @@ update msg model =
         MaterialMsg msg ->
             -- Here we handle the materials list, please check the units list above for comments
             case msg of
-                Material.Added material ->
+                MaterialModule.Added material ->
                     let
                         newMaterials =
-                            material :: model.materials
+                            parseMaterialFromDB model material :: model.materials
 
                         ( materialModel, cmd, message ) =
-                            Material.update msg model.material
+                            MaterialModule.update msg model.material
                     in
                         ( { model | material = materialModel, message = message, materials = newMaterials }
                         , Cmd.map MaterialMsg cmd
                         )
 
-                Material.Updated updatedMaterial ->
+                MaterialModule.Updated updatedMaterial ->
                     let
                         newMaterials =
-                            List.map (updateMaterialAtId updatedMaterial updatedMaterial.id) model.materials
+                            List.map (updateMaterialAtId (parseMaterialFromDB model updatedMaterial) updatedMaterial.id) model.materials
 
                         ( materialModel, cmd, message ) =
-                            Material.update msg model.material
+                            MaterialModule.update msg model.material
                     in
                         ( { model | material = materialModel, message = message, materials = newMaterials }
                         , Cmd.map MaterialMsg cmd
                         )
 
-                Material.Removed id ->
+                MaterialModule.Removed id ->
                     let
                         newMaterials =
                             List.filter (\material -> material.id /= id)
                                 model.materials
 
                         ( materialModel, cmd, message ) =
-                            Material.update msg model.material
+                            MaterialModule.update msg model.material
                     in
                         ( { model | material = materialModel, message = message, materials = newMaterials }
                         , Cmd.map MaterialMsg cmd
@@ -368,7 +404,7 @@ update msg model =
                 _ ->
                     let
                         ( materialModel, cmd, message ) =
-                            Material.update msg model.material
+                            MaterialModule.update msg model.material
                     in
                         ( { model | material = materialModel, message = message }
                         , Cmd.map MaterialMsg cmd
@@ -416,49 +452,51 @@ view model =
 
                 UnitIndexRoute ->
                     Html.map UnitMsg
-                        (Unit.view model.unit (Unit.IndexPage model.units))
+                        (UnitModule.view model.unit model.units UnitModule.IndexPage)
 
                 UnitShowRoute id ->
                     let
-                        unit =
-                            getUnitByIdFromList model.units id
-
                         unitOrClearUnit =
-                            Maybe.withDefault Aliases.initUnit unit
+                            Maybe.withDefault Aliases.initUnit (getUnitByIdFromList model.units id)
                     in
                         Html.map UnitMsg
-                            (Unit.view model.unit (Unit.ShowPage unitOrClearUnit))
+                            (UnitModule.view model.unit model.units (UnitModule.ShowPage unitOrClearUnit))
 
                 UnitNewRoute ->
                     Html.map UnitMsg
-                        (Unit.view model.unit (Unit.NewPage))
+                        (UnitModule.view model.unit model.units (UnitModule.NewPage))
 
                 UnitEditRoute id ->
                     let
-                        unit =
-                            getUnitByIdFromList model.units id
-
                         unitOrClearUnit =
-                            Maybe.withDefault Aliases.initUnit unit
+                            Maybe.withDefault Aliases.initUnit (getUnitByIdFromList model.units id)
                     in
                         Html.map UnitMsg
-                            (Unit.view model.unit (Unit.EditPage unitOrClearUnit))
+                            (UnitModule.view model.unit model.units (UnitModule.EditPage unitOrClearUnit))
 
                 MaterialIndexRoute ->
                     Html.map MaterialMsg
-                        (Material.view model.material model.materials model.units Material.IndexPage)
+                        (MaterialModule.view model.material model.materials model.units MaterialModule.IndexPage)
 
                 MaterialShowRoute id ->
-                    Html.map MaterialMsg
-                        (Material.view model.material model.materials model.units (Material.ShowPage id))
+                    let
+                        materialOrClearMaterial =
+                            Maybe.withDefault Aliases.initMaterial (getMaterialByIdFromList model.materials id)
+                    in
+                        Html.map MaterialMsg
+                            (MaterialModule.view model.material model.materials model.units (MaterialModule.ShowPage materialOrClearMaterial))
 
                 MaterialNewRoute ->
                     Html.map MaterialMsg
-                        (Material.view model.material model.materials model.units Material.NewPage)
+                        (MaterialModule.view model.material model.materials model.units MaterialModule.NewPage)
 
                 MaterialEditRoute id ->
-                    Html.map MaterialMsg
-                        (Material.view model.material model.materials model.units (Material.EditPage id))
+                    let
+                        materialOrClearMaterial =
+                            Maybe.withDefault Aliases.initMaterial (getMaterialByIdFromList model.materials id)
+                    in
+                        Html.map MaterialMsg
+                            (MaterialModule.view model.material model.materials model.units (MaterialModule.EditPage materialOrClearMaterial))
 
                 NotFoundRoute ->
                     div [ class "main" ]
@@ -509,10 +547,10 @@ subscriptions model =
             Index.subscriptions model.index
 
         unitSub =
-            Unit.subscriptions model.unit
+            UnitModule.subscriptions model.unit
 
         materialSub =
-            Material.subscriptions model.material
+            MaterialModule.subscriptions model.material
 
         messageSub =
             Message.subscriptions model.message
