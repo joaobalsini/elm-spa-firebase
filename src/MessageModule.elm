@@ -1,11 +1,11 @@
-port module Message exposing (..)
+port module MessageModule exposing (..)
 
 import Html exposing (..)
 import Html.Events exposing (..)
 import Html.Attributes exposing (..)
 
 
-type alias Model =
+type alias Message =
     { messageClass : String
     , header : String
     , text : String
@@ -13,8 +13,8 @@ type alias Model =
     }
 
 
-initModel : Model
-initModel =
+initMessage : Message
+initMessage =
     { messageClass = ""
     , header = ""
     , text = ""
@@ -22,17 +22,37 @@ initModel =
     }
 
 
-init : ( Model, Cmd Msg )
+errorMessage : String -> Message
+errorMessage text =
+    { initMessage
+        | messageClass = "negative"
+        , header = "Error"
+        , text = text
+        , active = True
+    }
+
+
+successMessage : String -> Message
+successMessage text =
+    { initMessage
+        | messageClass = "positive"
+        , header = "Success"
+        , text = text
+        , active = True
+    }
+
+
+init : ( Message, Cmd Msg )
 init =
-    ( initModel, Cmd.none )
+    ( initMessage, Cmd.none )
 
 
 type Msg
-    = Show Model
+    = Show Message
     | Hide
 
 
-update : Msg -> Model -> ( Model, Cmd Msg )
+update : Msg -> Message -> ( Message, Cmd Msg )
 update msg model =
     case msg of
         Show message ->
@@ -46,7 +66,7 @@ update msg model =
             )
 
 
-view : Model -> Html Msg
+view : Message -> Html Msg
 view model =
     let
         class_ =
@@ -65,10 +85,10 @@ view model =
         render
 
 
-port portMessage : (Model -> msg) -> Sub msg
+port portMessage : (Message -> msg) -> Sub msg
 
 
-subscriptions : Model -> Sub Msg
+subscriptions : Message -> Sub Msg
 subscriptions model =
     Sub.batch
         [ portMessage Show

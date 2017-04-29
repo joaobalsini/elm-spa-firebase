@@ -1,4 +1,4 @@
-module Login exposing (..)
+module LoginModule exposing (..)
 
 import Html exposing (..)
 import Html.Events exposing (..)

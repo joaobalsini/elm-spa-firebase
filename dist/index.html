@@ -66,6 +66,26 @@
     }
 
     //Materials
+    var materialListener = materialListener();
+    app.ports.loadMaterials.subscribe(function() {
+
+      materialListener.on("child_added", function(data){
+          var material = Object.assign({id: data.key}, data.val());
+          material.id = data.key
+          app.ports.materialAdded.send(material);
+      });
+      materialListener.on("child_removed", function(data){
+          app.ports.materialRemoved.send(data.key);
+      });
+      materialListener.on('child_changed', function(data) {
+          var material = Object.assign({id: data.key}, data.val());
+          material.id = data.key
+          app.ports.materialUpdated.send(material);
+      });
+    });
+
+
+
     app.ports.addMaterial.subscribe(function(material){
         addMaterial(material)
         .then(function(data){
@@ -83,40 +103,36 @@
         });
     });
     app.ports.removeMaterial.subscribe(function(id){
-        $('.ui.modal')
-          .modal({
-            closable  : false,
-            onDeny    : function(){
-              return true;
-            },
-            onApprove : function() {
-                deleteMaterial(id)
-                .then(function(response){
+        deleteMaterial(id)
+        .then(function(response){
 
-                }, function(err) {
-                  errorMessage( "Error removing Material:"+err)
-                });
-            }
-          })
-          .modal('show');
+        }, function(err) {
+          errorMessage( "Error removing Material:"+err)
+        });
     });
 
-    var materialListener = materialListener();
-    materialListener.on("child_added", function(data){
-        var material = Object.assign({id: data.key}, data.val());
-        material.id = data.key
-        app.ports.materialAdded.send(material);
-    });
-    materialListener.on("child_removed", function(data){
-        app.ports.materialRemoved.send(data.key);
-    });
-    materialListener.on('child_changed', function(data) {
-        var material = Object.assign({id: data.key}, data.val());
-        material.id = data.key
-        app.ports.materialUpdated.send(material);
-    });
+
+
+
 
     //UNITS
+    var unitListener = unitListener();
+    app.ports.loadUnits.subscribe(function() {
+      unitListener.on("child_added", function(data){
+          var unit = Object.assign({id: data.key}, data.val());
+          unit.id = data.key
+          app.ports.unitAdded.send(unit);
+      });
+      unitListener.on("child_removed", function(data){
+          app.ports.unitRemoved.send(data.key);
+      });
+      unitListener.on('child_changed', function(data) {
+          var unit = Object.assign({id: data.key}, data.val());
+          unit.id = data.key
+          app.ports.unitUpdated.send(unit);
+      });
+    });
+
     app.ports.addUnit.subscribe(function(unit){
         addUnit(unit)
         .then(function(data){
@@ -134,41 +150,18 @@
         });
     });
     app.ports.removeUnit.subscribe(function(unit){
-        $('.ui.modal')
-          .modal({
-            closable  : false,
-            onDeny    : function(){
-              return true;
-            },
-            onApprove : function() {
-                deleteUnit(unit)
-                .then(function(response){
+      deleteUnit(unit)
+      .then(function(response){
 
-                }, function(err) {
-                    errorMessage( "Error removing Unit:"+err)
-                });
-            }
-          })
-          .modal('show');
+      }, function(err) {
+          errorMessage( "Error removing Unit:"+err)
+      });
     });
 
 
 
 
-    var unitListener = unitListener();
-    unitListener.on("child_added", function(data){
-        var unit = Object.assign({id: data.key}, data.val());
-        unit.id = data.key
-        app.ports.unitAdded.send(unit);
-    });
-    unitListener.on("child_removed", function(data){
-        app.ports.unitRemoved.send(data.key);
-    });
-    unitListener.on('child_changed', function(data) {
-        var unit = Object.assign({id: data.key}, data.val());
-        unit.id = data.key
-        app.ports.unitUpdated.send(unit);
-    });
+
     </script>
 </body>
 

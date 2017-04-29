@@ -1,17 +1,16 @@
 module Routes exposing (..)
 
+import UrlParser exposing (..)
+import Navigation exposing (Location)
+import Materials.Routes
+import Units.Routes
+
 
 type Route
     = IndexRoute
     | LoginRoute
-    | UnitIndexRoute
-    | UnitShowRoute String
-    | UnitNewRoute
-    | UnitEditRoute String
-    | MaterialIndexRoute
-    | MaterialShowRoute String
-    | MaterialNewRoute
-    | MaterialEditRoute String
+    | UnitsRoutes Units.Routes.UnitRoute
+    | MaterialsRoutes Materials.Routes.MaterialRoute
     | NotFoundRoute
 
 
@@ -24,29 +23,39 @@ routeToHash route =
         LoginRoute ->
             "#/login"
 
-        UnitIndexRoute ->
-            "#/units"
+        UnitsRoutes subroute ->
+            "#/units/" ++ Units.Routes.unitRouteToHash subroute
 
-        UnitNewRoute ->
-            "#/units/new"
-
-        UnitShowRoute id ->
-            "#/units/" ++ id
-
-        UnitEditRoute id ->
-            "#/units/edit/" ++ id
-
-        MaterialIndexRoute ->
-            "#/materials"
-
-        MaterialNewRoute ->
-            "#/materials/new"
-
-        MaterialShowRoute id ->
-            "#/materials/" ++ id
-
-        MaterialEditRoute id ->
-            "#/materials/edit/" ++ id
+        MaterialsRoutes subroute ->
+            "#/materials/" ++ Materials.Routes.materialsRouteToHash subroute
 
         NotFoundRoute ->
             "#notfound"
+
+
+
+-- URL PARSING
+
+
+mainMatchers : List (Parser (Route -> a) a)
+mainMatchers =
+    [ map IndexRoute top
+    , map LoginRoute (s "login")
+    , map UnitsRoutes (s "units" </> (oneOf Units.Routes.unitMatchers))
+    , map MaterialsRoutes (s "materials" </> (oneOf Materials.Routes.materialMatchers))
+    ]
+
+
+matchers : Parser (Route -> a) a
+matchers =
+    oneOf mainMatchers
+
+
+locationToRoute : Location -> Route
+locationToRoute location =
+    case (parseHash matchers location) of
+        Nothing ->
+            NotFoundRoute
+
+        Just route ->
+            route
