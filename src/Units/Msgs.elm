@@ -11,7 +11,7 @@ type Msg
     | RedirectBack
     | NameInputChanged String
     | InitialsInputChanged String
-    | SubmitUnitForm String
+    | SubmitUnitForm (Maybe Unit)
     | RequestRemoveConfirmation String
     | CancelRemoveConfirmation
     | Remove String

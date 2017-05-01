@@ -38,7 +38,7 @@ view model maybeUnits subroute =
                                         text ("Unit not found with id:" ++ id)
 
                                     Just unit ->
-                                        unitForm model (Just id)
+                                        unitForm model (Just unit)
 
                         UnitShowRoute id ->
                             let
@@ -53,22 +53,8 @@ view model maybeUnits subroute =
                                         unitShow unit
             in
                 div [ class "main" ]
-                    [ unitFormErrorPanel model
-                    , page
+                    [ page
                     ]
-
-
-errorPanel : Maybe String -> Html a
-errorPanel error =
-    case error of
-        Nothing ->
-            text ""
-
-        Just msg ->
-            div [ class "error" ]
-                [ text msg
-                , button [ type_ "button" ] [ text "×" ]
-                ]
 
 
 unitOption : String -> Unit -> Html Msg
@@ -140,51 +126,56 @@ unitShow unit =
         ]
 
 
-unitForm : Model -> Maybe String -> Html Msg
-unitForm model maybeKey =
+unitForm : Model -> Maybe Unit -> Html Msg
+unitForm model maybeUnit =
     let
-        headerMessage =
-            if maybeKey == Nothing then
-                "New unit"
-            else
-                "Editing unit with id: " ++ (Maybe.withDefault "" maybeKey)
+        ( headerMessage, unit, submitMsg ) =
+            case maybeUnit of
+                Nothing ->
+                    ( "New unit", Nothing, SubmitUnitForm Nothing )
+
+                Just unit ->
+                    ( "Editing unit with id: " ++ (unit.id), Just unit, SubmitUnitForm (Just unit) )
     in
-        Html.form [ class "ui form", onSubmit (SubmitUnitForm (Maybe.withDefault "" maybeKey)) ]
-            [ div [ class "ui stacked segment" ]
-                [ h1 [] [ text headerMessage ]
-                , div
-                    [ classList
-                        [ ( "field", True ), ( "error", model.unitFormErrors.name /= Nothing ) ]
-                    ]
-                    [ label [] [ text "Name" ]
-                    , input
-                        [ type_ "text"
-                        , value model.unitFormFields.name
-                        , onInput NameInputChanged
+        div []
+            [ unitFormErrorPanel model
+            , Html.form [ class "ui form", onSubmit submitMsg ]
+                [ div [ class "ui stacked segment" ]
+                    [ h1 [] [ text headerMessage ]
+                    , div
+                        [ classList
+                            [ ( "field", True ), ( "error", model.unitFormErrors.name /= Nothing ) ]
                         ]
-                        []
-                    , span [] [ text <| Maybe.withDefault "" model.unitFormErrors.name ]
-                    ]
-                , div
-                    [ classList
-                        [ ( "field", True ), ( "error", model.unitFormErrors.initials /= Nothing ) ]
-                    ]
-                    [ label [] [ text "Inventory" ]
-                    , input
-                        [ type_ "text"
-                        , value model.unitFormFields.initials
-                        , onInput InitialsInputChanged
+                        [ label [] [ text "Name" ]
+                        , input
+                            [ type_ "text"
+                            , value model.unitFormFields.name
+                            , onInput NameInputChanged
+                            ]
+                            []
+                        , span [] [ text <| Maybe.withDefault "" model.unitFormErrors.name ]
                         ]
-                        []
-                    , span [] [ text <| Maybe.withDefault "" model.unitFormErrors.initials ]
+                    , div
+                        [ classList
+                            [ ( "field", True ), ( "error", model.unitFormErrors.initials /= Nothing ) ]
+                        ]
+                        [ label [] [ text "Inventory" ]
+                        , input
+                            [ type_ "text"
+                            , value model.unitFormFields.initials
+                            , onInput InitialsInputChanged
+                            ]
+                            []
+                        , span [] [ text <| Maybe.withDefault "" model.unitFormErrors.initials ]
+                        ]
+                    , div []
+                        [ label [] []
+                        , button [ type_ "submit", class "ui  submit button" ] [ text "Save" ]
+                        , a [ class "ui button", onClick RedirectBack ] [ text "Cancel" ]
+                        ]
                     ]
-                , div []
-                    [ label [] []
-                    , button [ type_ "submit", class "ui  submit button" ] [ text "Save" ]
-                    , a [ class "ui button", onClick RedirectBack ] [ text "Cancel" ]
-                    ]
+                , a [ href "javascript:void(0);", onClick (NavigateRoute (UnitsRoutes UnitIndexRoute)) ] [ text "Units list" ]
                 ]
-            , a [ href "javascript:void(0);", onClick (NavigateRoute (UnitsRoutes UnitIndexRoute)) ] [ text "Units list" ]
             ]
 
 

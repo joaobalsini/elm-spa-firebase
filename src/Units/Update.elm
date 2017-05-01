@@ -3,10 +3,11 @@ module Units.Update exposing (..)
 import Navigation
 import Utils.StringNumberConversion exposing (stringToFloatBrazilFormat)
 import Routes exposing (Route, routeToHash)
-import Units.Model exposing (Model, Unit, UnitDB, initModel, initUnitFormFields, formatUnitFromSystemToForm, parseUnitFormToDb)
+import Units.Model exposing (Model, Unit, UnitDB, initModel, initUnitFormFields, initUnitFormErrors, formatUnitFromSystemToForm, parseUnitFormToDb, unitChanged)
 import Units.Msgs exposing (..)
 import Store.Commands
 import Units.Routes
+import Msgs exposing (ReturnMsg(..))
 
 
 -- update
@@ -94,7 +95,7 @@ processAllUnitFormFields model =
         updatedModel
 
 
-update : Msg -> Model -> ( Model, Cmd Msg, Maybe Route, Bool )
+update : Msg -> Model -> ( Model, Cmd Msg, ReturnMsg )
 update msg model =
     case msg of
         LoadFormData unit ->
@@ -105,38 +106,34 @@ update msg model =
             in
                 ( updatedModel
                 , Cmd.none
-                , Nothing
-                , False
+                , NoOp
                 )
 
         ClearFormData ->
-            ( { model | unitFormFields = initUnitFormFields }
+            ( { model | unitFormFields = initUnitFormFields, unitFormErrors = initUnitFormErrors, unitFormShowErrorPanel = False }
             , Cmd.none
-            , Nothing
-            , False
+            , NoOp
             )
 
         NavigateRoute route ->
             ( model
             , Navigation.newUrl <| routeToHash route
-            , Nothing
-            , False
+            , NoOp
             )
 
         RedirectBack ->
             ( model
             , Navigation.back 1
-            , Nothing
-            , False
+            , NoOp
             )
 
         NameInputChanged name ->
-            ( processUnitFormNameInput name model, Cmd.none, Nothing, False )
+            ( processUnitFormNameInput name model, Cmd.none, NoOp )
 
         InitialsInputChanged name ->
-            ( processUnitFormInitialsInput name model, Cmd.none, Nothing, False )
+            ( processUnitFormInitialsInput name model, Cmd.none, NoOp )
 
-        SubmitUnitForm maybeId ->
+        SubmitUnitForm maybeUnit ->
             let
                 --simulate changes in all form fields, to see if it they are valid if they didn't change
                 -- ( model1, _, _ ) =
@@ -151,28 +148,43 @@ update msg model =
                         || processedModel.unitFormErrors.initials
                         /= Nothing
 
-                ( updatedModel, cmd, redirectRoute, waitingServerResponse ) =
+                ( updatedModel, cmd, returnMsg ) =
                     if showError then
-                        ( { processedModel | unitFormShowErrorPanel = True }, Cmd.none, Nothing, False )
-                    else
+                        ( { processedModel | unitFormShowErrorPanel = True }, Cmd.none, NoOp )
+                    else if (unitChanged maybeUnit processedModel.unitFormFields) then
                         let
+                            idOrEmptyId =
+                                case maybeUnit of
+                                    Nothing ->
+                                        ""
+
+                                    Just unit ->
+                                        unit.id
+
                             unitToDb : UnitDB
                             unitToDb =
                                 model.unitFormFields
-                                    |> parseUnitFormToDb maybeId
+                                    |> parseUnitFormToDb idOrEmptyId
                         in
-                            if maybeId == "" then
-                                ( initModel, Store.Commands.addUnit unitToDb, Just (Routes.UnitsRoutes Units.Routes.UnitIndexRoute), True )
-                            else
-                                ( initModel, Store.Commands.updateUnit unitToDb, Just (Routes.UnitsRoutes Units.Routes.UnitIndexRoute), True )
+                            case maybeUnit of
+                                Nothing ->
+                                    ( initModel, Store.Commands.addUnit unitToDb, WaitForServerSuccessAndRedirectWithDefaultRouteAndMessage (Routes.UnitsRoutes Units.Routes.UnitIndexRoute) "Unit successfully added!" )
+
+                                Just unit ->
+                                    ( initModel, Store.Commands.updateUnit unitToDb, WaitForServerSuccessAndRedirectWithDefaultRouteAndMessage (Routes.UnitsRoutes Units.Routes.UnitIndexRoute) "Unit successfully updated!" )
+                    else
+                        ( model
+                        , Navigation.back 1
+                        , ShowMessage "Nothing changed"
+                        )
             in
-                ( updatedModel, cmd, redirectRoute, waitingServerResponse )
+                ( updatedModel, cmd, returnMsg )
 
         RequestRemoveConfirmation id ->
-            ( { model | requestRemoveConfirmation = Just id }, Cmd.none, Nothing, False )
+            ( { model | requestRemoveConfirmation = Just id }, Cmd.none, NoOp )
 
         CancelRemoveConfirmation ->
-            ( { model | requestRemoveConfirmation = Nothing }, Cmd.none, Nothing, False )
+            ( { model | requestRemoveConfirmation = Nothing }, Cmd.none, NoOp )
 
         Remove id ->
-            ( model, Store.Commands.removeUnit id, Nothing, True )
+            ( model, Store.Commands.removeUnit id, WaitForServerSuccessAndShowMessage "Unit successfully removed!" )

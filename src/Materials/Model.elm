@@ -3,13 +3,6 @@ module Materials.Model exposing (..)
 import Utils.StringNumberConversion exposing (floatToStringBrazilFormat, stringToFloatBrazilFormat)
 
 
-type Subpage
-    = IndexPage
-    | NewPage
-    | EditPage Material
-    | ShowPage Material
-
-
 type alias Material =
     { id : String
     , name : String
@@ -195,7 +188,9 @@ validateMaterialFormInventory inventory =
 
 validateMaterialFormUnitId : String -> Result String String
 validateMaterialFormUnitId unitId =
-    if String.length unitId >= 1 then
+    if unitId == "-1" then
+        (Err "Should be selected")
+    else if String.length unitId > 1 then
         (Ok unitId)
     else
         (Err "Should be selected")
@@ -273,3 +268,20 @@ processAllMaterialFormFields model =
                 |> processMaterialFormInventoryInput model.materialFormFields.inventory
     in
         updatedModel
+
+
+materialChanged : Maybe Material -> MaterialFormFields -> Bool
+materialChanged maybeMaterialParsedFromDB actualMaterialForm =
+    case maybeMaterialParsedFromDB of
+        Nothing ->
+            True
+
+        Just material ->
+            let
+                materialFormattedToForm =
+                    formatMaterialFromSystemToForm material
+            in
+                if materialFormattedToForm.name == actualMaterialForm.name && materialFormattedToForm.unit_id == actualMaterialForm.unit_id && materialFormattedToForm.inventory == actualMaterialForm.inventory then
+                    False
+                else
+                    True

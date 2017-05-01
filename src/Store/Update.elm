@@ -1,7 +1,6 @@
 module Store.Update exposing (..)
 
 import Store.Commands
-import MessageModule exposing (Message, initMessage, errorMessage, successMessage)
 import Store.Msgs exposing (..)
 import Store.Model exposing (Model)
 import Materials.Model
@@ -11,11 +10,11 @@ import Units.Model
 -- Here we handle the materials list, please check the units list above for comments
 
 
-update : Msg -> Model -> ( Model, Cmd Msg, Message )
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         LoadMaterials ->
-            ( model, Store.Commands.loadMaterials (), initMessage )
+            ( model, Store.Commands.loadMaterials () )
 
         MaterialAdded material ->
             let
@@ -29,7 +28,6 @@ update msg model =
             in
                 ( { model | materials = newMaterials }
                 , Cmd.none
-                , successMessage "Material succesfully added"
                 )
 
         MaterialUpdated updatedMaterial ->
@@ -44,7 +42,6 @@ update msg model =
             in
                 ( { model | materials = newMaterials }
                 , Cmd.none
-                , successMessage "Material succesfully updated"
                 )
 
         MaterialRemoved id ->
@@ -59,11 +56,10 @@ update msg model =
             in
                 ( { model | materials = newMaterials }
                 , Cmd.none
-                , successMessage "Material succesfully removed"
                 )
 
         LoadUnits ->
-            ( model, Store.Commands.loadUnits (), initMessage )
+            ( model, Store.Commands.loadUnits () )
 
         UnitAdded unit ->
             let
@@ -77,7 +73,6 @@ update msg model =
             in
                 ( { model | units = newUnits }
                 , Cmd.none
-                , successMessage "Unit succesfully added"
                 )
 
         UnitUpdated updatedUnit ->
@@ -92,7 +87,6 @@ update msg model =
             in
                 ( { model | units = newUnits }
                 , Cmd.none
-                , successMessage "Unit succesfully updated"
                 )
 
         UnitRemoved id ->
@@ -107,7 +101,6 @@ update msg model =
             in
                 ( { model | units = newUnits }
                 , Cmd.none
-                , successMessage "Unit succesfully removed"
                 )
 
 

@@ -7,6 +7,7 @@ import IndexModule
 import LoginModule
 import MessageModule
 import Store.Msgs
+import Materials.Model
 
 
 type Msg
@@ -18,3 +19,13 @@ type Msg
     | MaterialMsg Materials.Msgs.Msg
     | MessageMsg MessageModule.Msg
     | StoreMsg Store.Msgs.Msg
+
+
+type ReturnMsg
+    = NoOp
+    | ShowMessage String
+    | WaitForServerSuccessAndRedirectToRoute Route
+    | WaitForServerSuccessAndRedirectWithDefaultRouteAndMessage Route String
+    | WaitForServerSuccessAndRedirectToRouteWithMessage Route String
+    | WaitForServerSuccessAndShowMessage String
+    | WaitForServerSuccessAndRedirectToRouteWithMessageRestoringMaterialModel Route String Materials.Model.Model

@@ -1,7 +1,7 @@
 module Models exposing (..)
 
 import Routes exposing (..)
-import Msgs exposing (Msg)
+import Msgs exposing (Msg, ReturnMsg)
 import Materials.Main
 import Materials.Model
 import Units.Main
@@ -23,7 +23,7 @@ type alias Model =
     , message : MessageModule.Message
     , materialModule : Materials.Model.Model
     , store : Store.Model.Model
-    , redirectAfterServerResponse : Maybe Route
+    , returnMsgsToProcess : List ReturnMsg
     , waitingServerResponse : Bool
     }
 
@@ -68,7 +68,7 @@ initModelandCmds route =
           , unitModule = unitInitModel
           , materialModule = materialInitModel
           , store = storeInitModel
-          , redirectAfterServerResponse = Nothing
+          , returnMsgsToProcess = []
           , waitingServerResponse = False
           }
         , cmds

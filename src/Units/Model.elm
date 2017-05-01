@@ -129,3 +129,20 @@ initModel =
     , unitFormShowErrorPanel = False
     , requestRemoveConfirmation = Nothing
     }
+
+
+unitChanged : Maybe Unit -> UnitFormFields -> Bool
+unitChanged maybeUnitParsedFromDB actualUnitForm =
+    case maybeUnitParsedFromDB of
+        Nothing ->
+            True
+
+        Just unit ->
+            let
+                unitFormattedToForm =
+                    formatUnitFromSystemToForm unit
+            in
+                if unitFormattedToForm.name == actualUnitForm.name && unitFormattedToForm.initials == actualUnitForm.initials then
+                    False
+                else
+                    True

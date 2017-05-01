@@ -47,7 +47,7 @@ view model maybeMaterials maybeUnits subroute =
                                                 text ("Material not found with id:" ++ id)
 
                                             Just material ->
-                                                materialForm model units (Just material.id)
+                                                materialForm model units (Just material)
 
                                 MaterialShowRoute id ->
                                     let
@@ -62,28 +62,14 @@ view model maybeMaterials maybeUnits subroute =
                                                 materialShow material units
                     in
                         div [ class "main" ]
-                            [ materialFormErrorPanel model
-                            , page
+                            [ page
                             ]
-
-
-errorPanel : Maybe String -> Html a
-errorPanel error =
-    case error of
-        Nothing ->
-            text ""
-
-        Just msg ->
-            div [ class "error" ]
-                [ text msg
-                , button [ type_ "button" ] [ text "×" ]
-                ]
 
 
 unitOption : String -> Unit -> Html Msg
 unitOption selectedUnitId unit =
     if unit.name == "" then
-        option [ value "", selected (selectedUnitId == "") ] [ text "Please select one unit" ]
+        option [ value "-1", selected (selectedUnitId == "") ] [ text "Please select one unit" ]
     else
         option [ value unit.id, selected (selectedUnitId == unit.id) ] [ text (unit.name ++ "(" ++ unit.initials ++ ")") ]
 
@@ -175,60 +161,65 @@ materialShow material units =
             ]
 
 
-materialForm : Model -> List Unit -> Maybe String -> Html Msg
-materialForm model units maybeKey =
+materialForm : Model -> List Unit -> Maybe Material -> Html Msg
+materialForm model units maybeMaterial =
     let
-        headerMessage =
-            if maybeKey == Nothing then
-                "New material"
-            else
-                "Editing material with id: " ++ (Maybe.withDefault "" maybeKey)
+        ( headerMessage, material, submitMsg ) =
+            case maybeMaterial of
+                Nothing ->
+                    ( "New material", Nothing, SubmitMaterialForm Nothing )
+
+                Just material ->
+                    ( "Editing material with id: " ++ (material.id), Just material, SubmitMaterialForm (Just material) )
     in
-        Html.form [ class "ui form", onSubmit (SubmitMaterialForm (Maybe.withDefault "" maybeKey)) ]
-            [ div [ class "ui stacked segment" ]
-                [ h1 [] [ text headerMessage ]
-                , div
-                    [ classList
-                        [ ( "field", True ), ( "error", model.materialFormErrors.name /= Nothing ) ]
-                    ]
-                    [ label [] [ text "Name" ]
-                    , input
-                        [ type_ "text"
-                        , value model.materialFormFields.name
-                        , onInput NameInputChanged
+        div []
+            [ materialFormErrorPanel model
+            , Html.form [ class "ui form", onSubmit submitMsg ]
+                [ div [ class "ui stacked segment" ]
+                    [ h1 [] [ text headerMessage ]
+                    , div
+                        [ classList
+                            [ ( "field", True ), ( "error", model.materialFormErrors.name /= Nothing ) ]
                         ]
-                        []
-                    , span [] [ text <| Maybe.withDefault "" model.materialFormErrors.name ]
-                    ]
-                , div
-                    [ classList
-                        [ ( "field", True ), ( "error", model.materialFormErrors.unit_id /= Nothing ) ]
-                    ]
-                    [ label [] [ text "UnitId" ]
-                    , select [ onInput UnitSelectChanged ]
-                        (List.map (unitOption model.materialFormFields.unit_id) (units ++ [ initUnit ]))
-                    , span [] [ text <| Maybe.withDefault "" model.materialFormErrors.unit_id ]
-                    ]
-                , div
-                    [ classList
-                        [ ( "field", True ), ( "error", model.materialFormErrors.inventory /= Nothing ) ]
-                    ]
-                    [ label [] [ text "Inventory" ]
-                    , input
-                        [ type_ "text"
-                        , value model.materialFormFields.inventory
-                        , onInput InventoryInputChanged
+                        [ label [] [ text "Name" ]
+                        , input
+                            [ type_ "text"
+                            , value model.materialFormFields.name
+                            , onInput NameInputChanged
+                            ]
+                            []
+                        , span [] [ text <| Maybe.withDefault "" model.materialFormErrors.name ]
                         ]
-                        []
-                    , span [] [ text <| Maybe.withDefault "" model.materialFormErrors.inventory ]
+                    , div
+                        [ classList
+                            [ ( "field", True ), ( "error", model.materialFormErrors.unit_id /= Nothing ) ]
+                        ]
+                        [ label [] [ text "UnitId" ]
+                        , select [ onInput UnitSelectChanged ]
+                            (List.map (unitOption model.materialFormFields.unit_id) (units ++ [ initUnit ]))
+                        , span [] [ text <| Maybe.withDefault "" model.materialFormErrors.unit_id ]
+                        ]
+                    , div
+                        [ classList
+                            [ ( "field", True ), ( "error", model.materialFormErrors.inventory /= Nothing ) ]
+                        ]
+                        [ label [] [ text "Inventory" ]
+                        , input
+                            [ type_ "text"
+                            , value model.materialFormFields.inventory
+                            , onInput InventoryInputChanged
+                            ]
+                            []
+                        , span [] [ text <| Maybe.withDefault "" model.materialFormErrors.inventory ]
+                        ]
+                    , div []
+                        [ label [] []
+                        , button [ type_ "submit", class "ui submit button" ] [ text "Save" ]
+                        , a [ class "ui button", onClick RedirectBack ] [ text "Cancel" ]
+                        ]
                     ]
-                , div []
-                    [ label [] []
-                    , button [ type_ "submit", class "ui submit button" ] [ text "Save" ]
-                    , a [ class "ui button", onClick RedirectBack ] [ text "Cancel" ]
-                    ]
+                , a [ href "javascript:void(0);", onClick (NavigateRoute (MaterialsRoutes MaterialIndexRoute)) ] [ text "Materials list" ]
                 ]
-            , a [ href "javascript:void(0);", onClick (NavigateRoute (MaterialsRoutes MaterialIndexRoute)) ] [ text "Materials list" ]
             ]
 
 

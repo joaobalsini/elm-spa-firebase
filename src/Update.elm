@@ -3,7 +3,7 @@ module Update exposing (..)
 import Navigation
 import Routes exposing (..)
 import Models exposing (Model)
-import Msgs exposing (Msg)
+import Msgs exposing (Msg, ReturnMsg(..))
 import IndexModule
 import LoginModule
 import Units.Update
@@ -17,6 +17,48 @@ import Units.Model exposing (Unit, UnitDB, getUnitByIdFromList, parseUnitFromDB,
 import Store.Commands
 import Materials.Routes
 import Units.Routes
+
+
+processReturnMsg : ReturnMsg -> Model -> Model
+processReturnMsg returnMsg model =
+    let
+        newReturnMsgsToProcess =
+            case returnMsg of
+                NoOp ->
+                    model.returnMsgsToProcess
+
+                ShowMessage string ->
+                    model.returnMsgsToProcess
+
+                WaitForServerSuccessAndRedirectWithDefaultRouteAndMessage route string ->
+                    if List.length (model.returnMsgsToProcess) > 0 then
+                        model.returnMsgsToProcess
+                    else
+                        [ WaitForServerSuccessAndRedirectToRouteWithMessage route string ]
+
+                _ ->
+                    model.returnMsgsToProcess ++ [ returnMsg ]
+
+        waitingServerResponse =
+            case returnMsg of
+                NoOp ->
+                    False
+
+                ShowMessage string ->
+                    False
+
+                _ ->
+                    True
+
+        notification =
+            case returnMsg of
+                ShowMessage string ->
+                    successMessage string
+
+                _ ->
+                    initMessage
+    in
+        { model | returnMsgsToProcess = newReturnMsgsToProcess, waitingServerResponse = waitingServerResponse, message = notification }
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -48,7 +90,11 @@ update msg model =
                                     case subroute of
                                         -- need to reload the route to reprocess the form
                                         Units.Routes.UnitEditRoute id ->
-                                            ( { model | route = route, redirectAfterServerResponse = Just route }, Store.Commands.loadUnits () )
+                                            let
+                                                newReturnMsgsToProcess =
+                                                    model.returnMsgsToProcess ++ [ WaitForServerSuccessAndRedirectToRoute route ]
+                                            in
+                                                ( { model | route = route, returnMsgsToProcess = newReturnMsgsToProcess }, Store.Commands.loadUnits () )
 
                                         _ ->
                                             ( { model | route = route }, Store.Commands.loadUnits () )
@@ -66,14 +112,19 @@ update msg model =
 
                                                     Just unit ->
                                                         let
-                                                            ( unitModel, cmd, maybeRoute, waitingServerConfirmation ) =
+                                                            ( unitModel, cmd, returnMsg ) =
                                                                 -- send msg LoadFormData ShowPage to UnitModule passing units and initMessage
                                                                 Units.Update.update (Units.Msgs.LoadFormData unit) model.unitModule
                                                         in
                                                             ( { model | route = route, unitModule = unitModel }, Cmd.none )
 
                                         _ ->
-                                            ( { model | route = route }, Cmd.none )
+                                            let
+                                                ( unitModel, cmd, returnMsg ) =
+                                                    -- send msg LoadFormData ShowPage to UnitModule passing units and initMessage
+                                                    Units.Update.update (Units.Msgs.ClearFormData) model.unitModule
+                                            in
+                                                ( { model | route = route, unitModule = unitModel }, Cmd.none )
                     in
                         ( updatedModel, cmd )
 
@@ -93,7 +144,11 @@ update msg model =
                                         -- need to reload the route to reprocess the form
                                         case subroute of
                                             Materials.Routes.MaterialEditRoute id ->
-                                                ( { model | route = route, redirectAfterServerResponse = Just route }, cmd )
+                                                let
+                                                    newReturnMsgsToProcess =
+                                                        model.returnMsgsToProcess ++ [ WaitForServerSuccessAndRedirectToRoute route ]
+                                                in
+                                                    ( { model | route = route, returnMsgsToProcess = newReturnMsgsToProcess }, cmd )
 
                                             _ ->
                                                 ( { model | route = route }, cmd )
@@ -111,14 +166,19 @@ update msg model =
 
                                                     Just material ->
                                                         let
-                                                            ( materialModel, cmd, maybeRoute, waitingServerResponse ) =
+                                                            ( materialModel, cmd, returnMsg ) =
                                                                 -- send msg PrepareView ShowPage to MaterialModule passing materials and initMessage
                                                                 Materials.Update.update (Materials.Msgs.LoadFormData material) model.materialModule
                                                         in
                                                             ( { model | route = route, materialModule = materialModel }, Cmd.none )
 
                                         _ ->
-                                            ( { model | route = route }, Cmd.none )
+                                            let
+                                                ( materialModel, cmd, returnMsg ) =
+                                                    -- send msg LoadFormData ShowPage to UnitModule passing units and initMessage
+                                                    Materials.Update.update (Materials.Msgs.ClearFormData) model.materialModule
+                                            in
+                                                ( { model | route = route, materialModule = materialModel }, Cmd.none )
                     in
                         ( updatedModel, cmd )
 
@@ -145,19 +205,27 @@ update msg model =
 
         Msgs.UnitMsg msg ->
             let
-                ( unitModel, cmd, maybeRoute, waitingServerResponse ) =
+                ( unitModel, cmd, returnMsg ) =
                     Units.Update.update msg model.unitModule
+
+                modelAfterProcessingReturnMsgs =
+                    { model | unitModule = unitModel }
+                        |> processReturnMsg returnMsg
             in
-                ( { model | unitModule = unitModel, redirectAfterServerResponse = maybeRoute, waitingServerResponse = waitingServerResponse }
+                ( modelAfterProcessingReturnMsgs
                 , Cmd.map Msgs.UnitMsg cmd
                 )
 
         Msgs.MaterialMsg msg ->
             let
-                ( materialModel, cmd, maybeRoute, waitingServerResponse ) =
+                ( materialModel, cmd, returnMsg ) =
                     Materials.Update.update msg model.materialModule
+
+                modelAfterProcessingReturnMsgs =
+                    { model | materialModule = materialModel }
+                        |> processReturnMsg returnMsg
             in
-                ( { model | materialModule = materialModel, redirectAfterServerResponse = maybeRoute, waitingServerResponse = waitingServerResponse }
+                ( modelAfterProcessingReturnMsgs
                 , Cmd.map Msgs.MaterialMsg cmd
                 )
 
@@ -172,23 +240,79 @@ update msg model =
 
         Msgs.StoreMsg msg ->
             let
-                ( storeModel, cmd, message ) =
+                ( storeModel, cmd ) =
                     Store.Update.update msg model.store
 
-                resultCmd =
-                    case model.redirectAfterServerResponse of
-                        Nothing ->
-                            Cmd.map Msgs.StoreMsg cmd
+                updatedModel =
+                    { model | store = storeModel, waitingServerResponse = False }
 
-                        Just route ->
-                            Cmd.batch [ Cmd.map Msgs.StoreMsg cmd, Navigation.newUrl <| routeToHash route ]
+                ( resultModel, resultCmd ) =
+                    case model.returnMsgsToProcess of
+                        [] ->
+                            ( { updatedModel | returnMsgsToProcess = [] }, Cmd.none )
 
-                resultMessage =
-                    if model.waitingServerResponse then
-                        message
-                    else
-                        initMessage
+                        x :: xs ->
+                            case x of
+                                WaitForServerSuccessAndRedirectToRoute route ->
+                                    let
+                                        resultCmd =
+                                            Cmd.batch [ Cmd.map Msgs.StoreMsg cmd, Navigation.newUrl <| routeToHash route ]
+
+                                        resultModel =
+                                            { updatedModel | returnMsgsToProcess = xs }
+                                    in
+                                        ( resultModel, resultCmd )
+
+                                WaitForServerSuccessAndRedirectWithDefaultRouteAndMessage route message ->
+                                    let
+                                        resultCmd =
+                                            Cmd.batch [ Cmd.map Msgs.StoreMsg cmd, Navigation.newUrl <| routeToHash route ]
+
+                                        resultModel =
+                                            { updatedModel | returnMsgsToProcess = xs, message = successMessage message }
+                                    in
+                                        ( resultModel, resultCmd )
+
+                                WaitForServerSuccessAndRedirectToRouteWithMessage route message ->
+                                    let
+                                        resultCmd =
+                                            Cmd.batch [ Cmd.map Msgs.StoreMsg cmd, Navigation.newUrl <| routeToHash route ]
+
+                                        resultModel =
+                                            { updatedModel | returnMsgsToProcess = xs, message = successMessage message }
+                                    in
+                                        ( resultModel, resultCmd )
+
+                                WaitForServerSuccessAndShowMessage message ->
+                                    let
+                                        resultCmd =
+                                            Cmd.map Msgs.StoreMsg cmd
+
+                                        resultModel =
+                                            { updatedModel | returnMsgsToProcess = xs, message = successMessage message }
+                                    in
+                                        ( resultModel, resultCmd )
+
+                                WaitForServerSuccessAndRedirectToRouteWithMessageRestoringMaterialModel route message materialModel ->
+                                    let
+                                        resultCmd =
+                                            Cmd.map Msgs.StoreMsg cmd
+
+                                        resultModel =
+                                            { updatedModel | message = successMessage message, returnMsgsToProcess = xs, materialModule = materialModel }
+                                    in
+                                        ( resultModel, resultCmd )
+
+                                _ ->
+                                    let
+                                        resultCmd =
+                                            Cmd.map Msgs.StoreMsg cmd
+
+                                        resultModel =
+                                            updatedModel
+                                    in
+                                        ( resultModel, resultCmd )
             in
-                ( { model | store = storeModel, message = resultMessage, redirectAfterServerResponse = Nothing, waitingServerResponse = False }
+                ( resultModel
                 , resultCmd
                 )

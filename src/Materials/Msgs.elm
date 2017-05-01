@@ -12,7 +12,7 @@ type Msg
     | NameInputChanged String
     | UnitSelectChanged String
     | InventoryInputChanged String
-    | SubmitMaterialForm String
+    | SubmitMaterialForm (Maybe Material)
     | RequestRemoveConfirmation String
     | CancelRemoveConfirmation
     | Remove String

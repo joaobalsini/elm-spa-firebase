@@ -2,16 +2,17 @@ module Materials.Update exposing (..)
 
 import Navigation
 import Routes exposing (Route, routeToHash)
-import Materials.Model exposing (Model, Material, MaterialDB, initModel, initMaterialFormFields)
+import Materials.Model exposing (Model, Material, MaterialDB, initModel, initMaterialFormFields, initMaterialFormErrors, materialChanged)
 import Materials.Msgs exposing (..)
 import Store.Commands
 import Materials.Routes
+import Msgs exposing (ReturnMsg(..))
 
 
 -- update
 
 
-update : Msg -> Model -> ( Model, Cmd Msg, Maybe Route, Bool )
+update : Msg -> Model -> ( Model, Cmd Msg, ReturnMsg )
 update msg model =
     case msg of
         LoadFormData material ->
@@ -22,41 +23,37 @@ update msg model =
             in
                 ( updatedModel
                 , Cmd.none
-                , Nothing
-                , False
+                , NoOp
                 )
 
         ClearFormData ->
-            ( { model | materialFormFields = initMaterialFormFields }
+            ( { model | materialFormFields = initMaterialFormFields, materialFormErrors = initMaterialFormErrors, materialFormShowErrorPanel = False }
             , Cmd.none
-            , Nothing
-            , False
+            , NoOp
             )
 
         NavigateRoute route ->
             ( model
             , Navigation.newUrl <| routeToHash route
-            , Nothing
-            , False
+            , NoOp
             )
 
         RedirectBack ->
             ( model
             , Navigation.back 1
-            , Nothing
-            , False
+            , NoOp
             )
 
         NameInputChanged name ->
-            ( Materials.Model.processMaterialFormNameInput name model, Cmd.none, Nothing, False )
+            ( Materials.Model.processMaterialFormNameInput name model, Cmd.none, NoOp )
 
         InventoryInputChanged inventory ->
-            ( Materials.Model.processMaterialFormInventoryInput inventory model, Cmd.none, Nothing, False )
+            ( Materials.Model.processMaterialFormInventoryInput inventory model, Cmd.none, NoOp )
 
         UnitSelectChanged unit_id ->
-            ( Materials.Model.processMaterialFormUnitIdInput unit_id model, Cmd.none, Nothing, False )
+            ( Materials.Model.processMaterialFormUnitIdInput unit_id model, Cmd.none, NoOp )
 
-        SubmitMaterialForm maybeId ->
+        SubmitMaterialForm maybeMaterial ->
             let
                 --simulate changes in all form fields, to see if it they are valid if they didn't change
                 -- ( model1, _, _ ) =
@@ -73,28 +70,43 @@ update msg model =
                         || processedModel.materialFormErrors.inventory
                         /= Nothing
 
-                ( updatedModel, cmd, redirectRoute, waitingServerResponse ) =
+                ( updatedModel, cmd, returnMsg ) =
                     if showError then
-                        ( { processedModel | materialFormShowErrorPanel = True }, Cmd.none, Nothing, False )
-                    else
+                        ( { processedModel | materialFormShowErrorPanel = True }, Cmd.none, NoOp )
+                    else if (materialChanged maybeMaterial processedModel.materialFormFields) then
                         let
+                            idOrEmptyId =
+                                case maybeMaterial of
+                                    Nothing ->
+                                        ""
+
+                                    Just material ->
+                                        material.id
+
                             materialToDb : MaterialDB
                             materialToDb =
                                 model.materialFormFields
-                                    |> Materials.Model.parseMaterialFormToDb maybeId
+                                    |> Materials.Model.parseMaterialFormToDb idOrEmptyId
                         in
-                            if maybeId == "" then
-                                ( initModel, Store.Commands.addMaterial materialToDb, Just (Routes.MaterialsRoutes Materials.Routes.MaterialIndexRoute), True )
-                            else
-                                ( initModel, Store.Commands.updateMaterial materialToDb, Just (Routes.MaterialsRoutes Materials.Routes.MaterialIndexRoute), True )
+                            case maybeMaterial of
+                                Nothing ->
+                                    ( initModel, Store.Commands.addMaterial materialToDb, WaitForServerSuccessAndRedirectWithDefaultRouteAndMessage (Routes.MaterialsRoutes Materials.Routes.MaterialIndexRoute) "Material successfully added!" )
+
+                                Just material ->
+                                    ( initModel, Store.Commands.updateMaterial materialToDb, WaitForServerSuccessAndRedirectWithDefaultRouteAndMessage (Routes.MaterialsRoutes Materials.Routes.MaterialIndexRoute) "Material successfully updated!" )
+                    else
+                        ( model
+                        , Navigation.back 1
+                        , ShowMessage "Nothing changed"
+                        )
             in
-                ( updatedModel, cmd, redirectRoute, waitingServerResponse )
+                ( updatedModel, cmd, returnMsg )
 
         RequestRemoveConfirmation id ->
-            ( { model | requestRemoveConfirmation = Just id }, Cmd.none, Nothing, False )
+            ( { model | requestRemoveConfirmation = Just id }, Cmd.none, NoOp )
 
         CancelRemoveConfirmation ->
-            ( { model | requestRemoveConfirmation = Nothing }, Cmd.none, Nothing, False )
+            ( { model | requestRemoveConfirmation = Nothing }, Cmd.none, NoOp )
 
         Remove id ->
-            ( model, Store.Commands.removeMaterial id, Nothing, True )
+            ( model, Store.Commands.removeMaterial id, WaitForServerSuccessAndShowMessage "Material successfully removed!" )
