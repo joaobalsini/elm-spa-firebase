@@ -9,14 +9,14 @@ import Html.Attributes exposing (..)
 
 
 type alias Model =
-    { message : Maybe String
+    { notification : Maybe String
     , query : String
     }
 
 
 initModel : Model
 initModel =
-    { message = Nothing
+    { notification = Nothing
     , query = ""
     }
 
@@ -53,14 +53,14 @@ view : Model -> Html Msg
 view model =
     div [ class "main" ]
         [ h1 [ class "ui header" ] [ text "Initial Page - Index" ]
-        , messagePanel model.message
+        , notificationPanel model.notification
         , searchForm model.query
         ]
 
 
-messagePanel : Maybe String -> Html a
-messagePanel message =
-    case message of
+notificationPanel : Maybe String -> Html a
+notificationPanel notification =
+    case notification of
         Nothing ->
             text ""
 

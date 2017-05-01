@@ -90,14 +90,14 @@ update msg model =
                         in
                             case maybeMaterial of
                                 Nothing ->
-                                    ( initModel, Store.Commands.addMaterial materialToDb, WaitForServerSuccessAndRedirectWithDefaultRouteAndMessage (Routes.MaterialsRoutes Materials.Routes.MaterialIndexRoute) "Material successfully added!" )
+                                    ( initModel, Store.Commands.addMaterial materialToDb, WaitForServerSuccessAndRedirectWithDefaultRouteAndNotification (Routes.MaterialsRoutes Materials.Routes.MaterialIndexRoute) "Material successfully added!" )
 
                                 Just material ->
-                                    ( initModel, Store.Commands.updateMaterial materialToDb, WaitForServerSuccessAndRedirectWithDefaultRouteAndMessage (Routes.MaterialsRoutes Materials.Routes.MaterialIndexRoute) "Material successfully updated!" )
+                                    ( initModel, Store.Commands.updateMaterial materialToDb, WaitForServerSuccessAndRedirectWithDefaultRouteAndNotification (Routes.MaterialsRoutes Materials.Routes.MaterialIndexRoute) "Material successfully updated!" )
                     else
                         ( model
                         , Navigation.back 1
-                        , ShowMessage "Nothing changed"
+                        , ShowNotification "Nothing changed"
                         )
             in
                 ( updatedModel, cmd, returnMsg )
@@ -109,4 +109,4 @@ update msg model =
             ( { model | requestRemoveConfirmation = Nothing }, Cmd.none, NoOp )
 
         Remove id ->
-            ( model, Store.Commands.removeMaterial id, WaitForServerSuccessAndShowMessage "Material successfully removed!" )
+            ( model, Store.Commands.removeMaterial id, WaitForServerSuccessAndShowNotification "Material successfully removed!" )

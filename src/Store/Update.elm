@@ -105,4 +105,4 @@ update msg model =
 
 
 
--- otherwise we just pass the message to unit module
+-- otherwise we just pass the notification to unit module

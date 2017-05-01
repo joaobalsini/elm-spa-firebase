@@ -129,7 +129,7 @@ unitShow unit =
 unitForm : Model -> Maybe Unit -> Html Msg
 unitForm model maybeUnit =
     let
-        ( headerMessage, unit, submitMsg ) =
+        ( headerNotification, unit, submitMsg ) =
             case maybeUnit of
                 Nothing ->
                     ( "New unit", Nothing, SubmitUnitForm Nothing )
@@ -141,7 +141,7 @@ unitForm model maybeUnit =
             [ unitFormErrorPanel model
             , Html.form [ class "ui form", onSubmit submitMsg ]
                 [ div [ class "ui stacked segment" ]
-                    [ h1 [] [ text headerMessage ]
+                    [ h1 [] [ text headerNotification ]
                     , div
                         [ classList
                             [ ( "field", True ), ( "error", model.unitFormErrors.name /= Nothing ) ]
@@ -184,18 +184,18 @@ unitFormErrorPanel model =
     let
         list : List FieldError
         list =
-            [ { fieldName = "Name", errorMessage = model.unitFormErrors.name }
-            , { fieldName = "Initials", errorMessage = model.unitFormErrors.initials }
+            [ { fieldName = "Name", errorNotification = model.unitFormErrors.name }
+            , { fieldName = "Initials", errorNotification = model.unitFormErrors.initials }
             ]
 
         elementsWithError : List FieldError
         elementsWithError =
-            List.filter (\el -> el.errorMessage /= Nothing) list
+            List.filter (\el -> el.errorNotification /= Nothing) list
     in
         if model.unitFormShowErrorPanel then
-            div [ id "formErrors", class "ui message error " ]
+            div [ id "formErrors", class "ui notification error " ]
                 [ div [ class "header" ] [ text "We had some issues:" ]
-                , ul [ class "list" ] (List.map (\el -> li [] [ text (el.fieldName ++ ":" ++ (Maybe.withDefault "" el.errorMessage)) ]) elementsWithError)
+                , ul [ class "list" ] (List.map (\el -> li [] [ text (el.fieldName ++ ":" ++ (Maybe.withDefault "" el.errorNotification)) ]) elementsWithError)
                 ]
         else
             div [] []

@@ -10,7 +10,7 @@ import Store.Main
 import Store.Model
 import IndexModule
 import LoginModule
-import MessageModule
+import NotificationModule
 import Navigation
 
 
@@ -20,7 +20,7 @@ type alias Model =
     , loginModule : LoginModule.Model
     , indexModule : IndexModule.Model
     , unitModule : Units.Model.Model
-    , message : MessageModule.Message
+    , notification : NotificationModule.Notification
     , materialModule : Materials.Model.Model
     , store : Store.Model.Model
     , returnMsgsToProcess : List ReturnMsg
@@ -43,8 +43,8 @@ initModelandCmds route =
         ( materialInitModel, materialCmd ) =
             Materials.Main.init
 
-        ( messageInitModel, messageCmd ) =
-            MessageModule.init
+        ( notificationInitModel, notificationCmd ) =
+            NotificationModule.init
 
         ( storeInitModel, storeCmd ) =
             Store.Main.init
@@ -56,7 +56,7 @@ initModelandCmds route =
                 , Cmd.map Msgs.IndexMsg indexCmd
                 , Cmd.map Msgs.UnitMsg unitCmd
                 , Cmd.map Msgs.MaterialMsg materialCmd
-                , Cmd.map Msgs.MessageMsg messageCmd
+                , Cmd.map Msgs.NotificationMsg notificationCmd
                 , Cmd.map Msgs.StoreMsg storeCmd
                 ]
     in
@@ -64,7 +64,7 @@ initModelandCmds route =
           , lastRoute = route
           , loginModule = loginInitModel
           , indexModule = indexInitModel
-          , message = MessageModule.initMessage
+          , notification = NotificationModule.initNotification
           , unitModule = unitInitModel
           , materialModule = materialInitModel
           , store = storeInitModel

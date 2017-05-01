@@ -164,7 +164,7 @@ materialShow material units =
 materialForm : Model -> List Unit -> Maybe Material -> Html Msg
 materialForm model units maybeMaterial =
     let
-        ( headerMessage, material, submitMsg ) =
+        ( headerNotification, material, submitMsg ) =
             case maybeMaterial of
                 Nothing ->
                     ( "New material", Nothing, SubmitMaterialForm Nothing )
@@ -176,7 +176,7 @@ materialForm model units maybeMaterial =
             [ materialFormErrorPanel model
             , Html.form [ class "ui form", onSubmit submitMsg ]
                 [ div [ class "ui stacked segment" ]
-                    [ h1 [] [ text headerMessage ]
+                    [ h1 [] [ text headerNotification ]
                     , div
                         [ classList
                             [ ( "field", True ), ( "error", model.materialFormErrors.name /= Nothing ) ]
@@ -228,19 +228,19 @@ materialFormErrorPanel model =
     let
         list : List FieldError
         list =
-            [ { fieldName = "Name", errorMessage = model.materialFormErrors.name }
-            , { fieldName = "UnitId", errorMessage = model.materialFormErrors.unit_id }
-            , { fieldName = "Inventory", errorMessage = model.materialFormErrors.inventory }
+            [ { fieldName = "Name", errorNotification = model.materialFormErrors.name }
+            , { fieldName = "UnitId", errorNotification = model.materialFormErrors.unit_id }
+            , { fieldName = "Inventory", errorNotification = model.materialFormErrors.inventory }
             ]
 
         elementsWithError : List FieldError
         elementsWithError =
-            List.filter (\el -> el.errorMessage /= Nothing) list
+            List.filter (\el -> el.errorNotification /= Nothing) list
     in
         if model.materialFormShowErrorPanel then
-            div [ id "formErrors", class "ui message error " ]
+            div [ id "formErrors", class "ui notification error " ]
                 [ div [ class "header" ] [ text "We had some issues:" ]
-                , ul [ class "list" ] (List.map (\el -> li [] [ text (el.fieldName ++ ":" ++ (Maybe.withDefault "" el.errorMessage)) ]) elementsWithError)
+                , ul [ class "list" ] (List.map (\el -> li [] [ text (el.fieldName ++ ":" ++ (Maybe.withDefault "" el.errorNotification)) ]) elementsWithError)
                 ]
         else
             div [] []

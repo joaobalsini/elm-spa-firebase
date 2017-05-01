@@ -51,7 +51,7 @@
             text: text,
             active: true
         }
-        app.ports.portMessage.send(message)
+        app.ports.portNotification.send(message)
     }
 
     var errorMessage = function(text)
@@ -62,7 +62,7 @@
             text: text,
             active: true
         }
-        app.ports.portMessage.send(message)
+        app.ports.portNotification.send(message)
     }
 
     //Materials

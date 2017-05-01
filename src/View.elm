@@ -12,7 +12,7 @@ import Materials.View
 import Units.View
 import IndexModule
 import LoginModule
-import MessageModule
+import NotificationModule
 
 
 view : Model -> Html Msg
@@ -48,7 +48,7 @@ view model =
     in
         div []
             [ div [ class "ui fixed inverted menu" ] [ pageHeader model ]
-            , Html.map Msgs.MessageMsg (MessageModule.view model.message)
+            , Html.map Msgs.NotificationMsg (NotificationModule.view model.notification)
             , div [ class "ui main text container" ] [ page ]
             ]
 

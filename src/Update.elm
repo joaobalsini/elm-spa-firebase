@@ -11,7 +11,7 @@ import Units.Msgs
 import Materials.Msgs
 import Materials.Update
 import Store.Update
-import MessageModule exposing (initMessage, errorMessage, successMessage)
+import NotificationModule exposing (initNotification, errorNotification, successNotification)
 import Materials.Model exposing (Material, MaterialDB, getMaterialByIdFromList, parseMaterialFromDB, updateMaterialAtId)
 import Units.Model exposing (Unit, UnitDB, getUnitByIdFromList, parseUnitFromDB, updateUnitAtId)
 import Store.Commands
@@ -27,14 +27,14 @@ processReturnMsg returnMsg model =
                 NoOp ->
                     model.returnMsgsToProcess
 
-                ShowMessage string ->
+                ShowNotification string ->
                     model.returnMsgsToProcess
 
-                WaitForServerSuccessAndRedirectWithDefaultRouteAndMessage route string ->
+                WaitForServerSuccessAndRedirectWithDefaultRouteAndNotification route string ->
                     if List.length (model.returnMsgsToProcess) > 0 then
                         model.returnMsgsToProcess
                     else
-                        [ WaitForServerSuccessAndRedirectToRouteWithMessage route string ]
+                        [ WaitForServerSuccessAndRedirectToRouteWithNotification route string ]
 
                 _ ->
                     model.returnMsgsToProcess ++ [ returnMsg ]
@@ -44,7 +44,7 @@ processReturnMsg returnMsg model =
                 NoOp ->
                     False
 
-                ShowMessage string ->
+                ShowNotification string ->
                     False
 
                 _ ->
@@ -52,13 +52,13 @@ processReturnMsg returnMsg model =
 
         notification =
             case returnMsg of
-                ShowMessage string ->
-                    successMessage string
+                ShowNotification string ->
+                    successNotification string
 
                 _ ->
-                    initMessage
+                    initNotification
     in
-        { model | returnMsgsToProcess = newReturnMsgsToProcess, waitingServerResponse = waitingServerResponse, message = notification }
+        { model | returnMsgsToProcess = newReturnMsgsToProcess, waitingServerResponse = waitingServerResponse, notification = notification }
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -75,10 +75,10 @@ update msg model =
         -- ChangePage is used once a user changes the URL manually
         Msgs.ChangePage route ->
             case route of
-                -- We need to process part of the message here, as the array of units is "Main module" responsability
+                -- We need to process part of the notification here, as the array of units is "Main module" responsability
                 -- Why don't we keep the array of units inside unitModel?
                 -- Because some other modules will also need it and we want to avoid duplications as it would tend to bug
-                -- We could also create "message interceptors" for each message of the subModule but I only need to pre process some of them
+                -- We could also create "notification interceptors" for each notification of the subModule but I only need to pre process some of them
                 -- As the UnitShow and UnitEdit need to be pre validated (as the user could, for example)
                 -- And, in case of Unit Edit we NEED to set the unit inside the unit module as we need to interact of it inside the unit view, when inputsChanged for example
                 UnitsRoutes subroute ->
@@ -113,7 +113,7 @@ update msg model =
                                                     Just unit ->
                                                         let
                                                             ( unitModel, cmd, returnMsg ) =
-                                                                -- send msg LoadFormData ShowPage to UnitModule passing units and initMessage
+                                                                -- send msg LoadFormData ShowPage to UnitModule passing units and initNotification
                                                                 Units.Update.update (Units.Msgs.LoadFormData unit) model.unitModule
                                                         in
                                                             ( { model | route = route, unitModule = unitModel }, Cmd.none )
@@ -121,7 +121,7 @@ update msg model =
                                         _ ->
                                             let
                                                 ( unitModel, cmd, returnMsg ) =
-                                                    -- send msg LoadFormData ShowPage to UnitModule passing units and initMessage
+                                                    -- send msg LoadFormData ShowPage to UnitModule passing units and initNotification
                                                     Units.Update.update (Units.Msgs.ClearFormData) model.unitModule
                                             in
                                                 ( { model | route = route, unitModule = unitModel }, Cmd.none )
@@ -167,7 +167,7 @@ update msg model =
                                                     Just material ->
                                                         let
                                                             ( materialModel, cmd, returnMsg ) =
-                                                                -- send msg PrepareView ShowPage to MaterialModule passing materials and initMessage
+                                                                -- send msg PrepareView ShowPage to MaterialModule passing materials and initNotification
                                                                 Materials.Update.update (Materials.Msgs.LoadFormData material) model.materialModule
                                                         in
                                                             ( { model | route = route, materialModule = materialModel }, Cmd.none )
@@ -175,7 +175,7 @@ update msg model =
                                         _ ->
                                             let
                                                 ( materialModel, cmd, returnMsg ) =
-                                                    -- send msg LoadFormData ShowPage to UnitModule passing units and initMessage
+                                                    -- send msg LoadFormData ShowPage to UnitModule passing units and initNotification
                                                     Materials.Update.update (Materials.Msgs.ClearFormData) model.materialModule
                                             in
                                                 ( { model | route = route, materialModule = materialModel }, Cmd.none )
@@ -229,13 +229,13 @@ update msg model =
                 , Cmd.map Msgs.MaterialMsg cmd
                 )
 
-        Msgs.MessageMsg msg ->
+        Msgs.NotificationMsg msg ->
             let
-                ( messageModel, cmd ) =
-                    MessageModule.update msg model.message
+                ( notificationModel, cmd ) =
+                    NotificationModule.update msg model.notification
             in
-                ( { model | message = messageModel }
-                , Cmd.map Msgs.MessageMsg cmd
+                ( { model | notification = notificationModel }
+                , Cmd.map Msgs.NotificationMsg cmd
                 )
 
         Msgs.StoreMsg msg ->
@@ -263,43 +263,43 @@ update msg model =
                                     in
                                         ( resultModel, resultCmd )
 
-                                WaitForServerSuccessAndRedirectWithDefaultRouteAndMessage route message ->
+                                WaitForServerSuccessAndRedirectWithDefaultRouteAndNotification route notification ->
                                     let
                                         resultCmd =
                                             Cmd.batch [ Cmd.map Msgs.StoreMsg cmd, Navigation.newUrl <| routeToHash route ]
 
                                         resultModel =
-                                            { updatedModel | returnMsgsToProcess = xs, message = successMessage message }
+                                            { updatedModel | returnMsgsToProcess = xs, notification = successNotification notification }
                                     in
                                         ( resultModel, resultCmd )
 
-                                WaitForServerSuccessAndRedirectToRouteWithMessage route message ->
+                                WaitForServerSuccessAndRedirectToRouteWithNotification route notification ->
                                     let
                                         resultCmd =
                                             Cmd.batch [ Cmd.map Msgs.StoreMsg cmd, Navigation.newUrl <| routeToHash route ]
 
                                         resultModel =
-                                            { updatedModel | returnMsgsToProcess = xs, message = successMessage message }
+                                            { updatedModel | returnMsgsToProcess = xs, notification = successNotification notification }
                                     in
                                         ( resultModel, resultCmd )
 
-                                WaitForServerSuccessAndShowMessage message ->
+                                WaitForServerSuccessAndShowNotification notification ->
                                     let
                                         resultCmd =
                                             Cmd.map Msgs.StoreMsg cmd
 
                                         resultModel =
-                                            { updatedModel | returnMsgsToProcess = xs, message = successMessage message }
+                                            { updatedModel | returnMsgsToProcess = xs, notification = successNotification notification }
                                     in
                                         ( resultModel, resultCmd )
 
-                                WaitForServerSuccessAndRedirectToRouteWithMessageRestoringMaterialModel route message materialModel ->
+                                WaitForServerSuccessAndRedirectToRouteWithNotificationRestoringMaterialModel route notification materialModel ->
                                     let
                                         resultCmd =
                                             Cmd.map Msgs.StoreMsg cmd
 
                                         resultModel =
-                                            { updatedModel | message = successMessage message, returnMsgsToProcess = xs, materialModule = materialModel }
+                                            { updatedModel | notification = successNotification notification, returnMsgsToProcess = xs, materialModule = materialModel }
                                     in
                                         ( resultModel, resultCmd )
 

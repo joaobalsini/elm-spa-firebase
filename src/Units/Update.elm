@@ -168,14 +168,14 @@ update msg model =
                         in
                             case maybeUnit of
                                 Nothing ->
-                                    ( initModel, Store.Commands.addUnit unitToDb, WaitForServerSuccessAndRedirectWithDefaultRouteAndMessage (Routes.UnitsRoutes Units.Routes.UnitIndexRoute) "Unit successfully added!" )
+                                    ( initModel, Store.Commands.addUnit unitToDb, WaitForServerSuccessAndRedirectWithDefaultRouteAndNotification (Routes.UnitsRoutes Units.Routes.UnitIndexRoute) "Unit successfully added!" )
 
                                 Just unit ->
-                                    ( initModel, Store.Commands.updateUnit unitToDb, WaitForServerSuccessAndRedirectWithDefaultRouteAndMessage (Routes.UnitsRoutes Units.Routes.UnitIndexRoute) "Unit successfully updated!" )
+                                    ( initModel, Store.Commands.updateUnit unitToDb, WaitForServerSuccessAndRedirectWithDefaultRouteAndNotification (Routes.UnitsRoutes Units.Routes.UnitIndexRoute) "Unit successfully updated!" )
                     else
                         ( model
                         , Navigation.back 1
-                        , ShowMessage "Nothing changed"
+                        , ShowNotification "Nothing changed"
                         )
             in
                 ( updatedModel, cmd, returnMsg )
@@ -187,4 +187,4 @@ update msg model =
             ( { model | requestRemoveConfirmation = Nothing }, Cmd.none, NoOp )
 
         Remove id ->
-            ( model, Store.Commands.removeUnit id, WaitForServerSuccessAndShowMessage "Unit successfully removed!" )
+            ( model, Store.Commands.removeUnit id, WaitForServerSuccessAndShowNotification "Unit successfully removed!" )

@@ -4,7 +4,7 @@ import Models exposing (Model)
 import Msgs exposing (Msg)
 import IndexModule
 import LoginModule
-import MessageModule
+import NotificationModule
 import Store.Subscriptions
 
 
@@ -20,12 +20,12 @@ subscriptions model =
         storeSub =
             Store.Subscriptions.subscriptions model.store
 
-        messageSub =
-            MessageModule.subscriptions model.message
+        notificationSub =
+            NotificationModule.subscriptions model.notification
     in
         Sub.batch
             [ Sub.map Msgs.IndexMsg indexSub
             , Sub.map Msgs.LoginMsg loginSub
             , Sub.map Msgs.StoreMsg storeSub
-            , Sub.map Msgs.MessageMsg messageSub
+            , Sub.map Msgs.NotificationMsg notificationSub
             ]

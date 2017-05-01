@@ -5,7 +5,7 @@ import Materials.Msgs
 import Units.Msgs
 import IndexModule
 import LoginModule
-import MessageModule
+import NotificationModule
 import Store.Msgs
 import Materials.Model
 
@@ -17,15 +17,15 @@ type Msg
     | LoginMsg LoginModule.Msg
     | UnitMsg Units.Msgs.Msg
     | MaterialMsg Materials.Msgs.Msg
-    | MessageMsg MessageModule.Msg
+    | NotificationMsg NotificationModule.Msg
     | StoreMsg Store.Msgs.Msg
 
 
 type ReturnMsg
     = NoOp
-    | ShowMessage String
+    | ShowNotification String
     | WaitForServerSuccessAndRedirectToRoute Route
-    | WaitForServerSuccessAndRedirectWithDefaultRouteAndMessage Route String
-    | WaitForServerSuccessAndRedirectToRouteWithMessage Route String
-    | WaitForServerSuccessAndShowMessage String
-    | WaitForServerSuccessAndRedirectToRouteWithMessageRestoringMaterialModel Route String Materials.Model.Model
+    | WaitForServerSuccessAndRedirectWithDefaultRouteAndNotification Route String
+    | WaitForServerSuccessAndRedirectToRouteWithNotification Route String
+    | WaitForServerSuccessAndShowNotification String
+    | WaitForServerSuccessAndRedirectToRouteWithNotificationRestoringMaterialModel Route String Materials.Model.Model
