@@ -21,8 +21,7 @@ function updateUnit(unit){
   return promise;
 }
 
-function deleteUnit(unit){
-  var id = unit.id;
+function deleteUnit(id){
   var promise = database
     .ref(UNITSPATH + "/" + id)
     .remove();

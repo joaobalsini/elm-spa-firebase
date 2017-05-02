@@ -3,7 +3,8 @@ module Update exposing (..)
 import Navigation
 import Routes exposing (..)
 import Models exposing (Model)
-import Msgs exposing (Msg, ReturnMsg(..))
+import Msgs exposing (Msg)
+import ReturnMsgs exposing (ReturnMsg)
 import IndexModule
 import LoginModule
 import Units.Update
@@ -24,27 +25,36 @@ processReturnMsg returnMsg model =
     let
         newReturnMsgsToProcess =
             case returnMsg of
-                NoOp ->
+                ReturnMsgs.NoOp ->
                     model.returnMsgsToProcess
 
-                ShowNotification string ->
+                ReturnMsgs.ShowNotification string ->
                     model.returnMsgsToProcess
 
-                WaitForServerSuccessAndRedirectWithDefaultRouteAndNotification route string ->
+                ReturnMsgs.WaitForServerSuccessAndRedirectWithDefaultRouteAndNotification route string ->
                     if List.length (model.returnMsgsToProcess) > 0 then
                         model.returnMsgsToProcess
                     else
-                        [ WaitForServerSuccessAndRedirectToRouteWithNotification route string ]
+                        [ ReturnMsgs.WaitForServerSuccessAndRedirectToRouteWithNotification route string ]
 
                 _ ->
                     model.returnMsgsToProcess ++ [ returnMsg ]
 
         waitingServerResponse =
             case returnMsg of
-                NoOp ->
+                ReturnMsgs.NoOp ->
                     False
 
-                ShowNotification string ->
+                ReturnMsgs.ShowNotification string ->
+                    False
+
+                ReturnMsgs.SaveForLaterWaitForServerSuccessAndRedirectToRoute route ->
+                    False
+
+                ReturnMsgs.SaveForLaterWaitForServerSuccessAndRedirectToRouteWithNotificationRestoringMaterialModel route string materialModel ->
+                    False
+
+                ReturnMsgs.SaveForLaterWaitForServerSuccessAndRedirectToRouteWithNotification route string ->
                     False
 
                 _ ->
@@ -52,7 +62,7 @@ processReturnMsg returnMsg model =
 
         notification =
             case returnMsg of
-                ShowNotification string ->
+                ReturnMsgs.ShowNotification string ->
                     successNotification string
 
                 _ ->
@@ -92,7 +102,7 @@ update msg model =
                                         Units.Routes.UnitEditRoute id ->
                                             let
                                                 newReturnMsgsToProcess =
-                                                    model.returnMsgsToProcess ++ [ WaitForServerSuccessAndRedirectToRoute route ]
+                                                    model.returnMsgsToProcess ++ [ ReturnMsgs.WaitForServerSuccessAndRedirectToRoute route ]
                                             in
                                                 ( { model | route = route, returnMsgsToProcess = newReturnMsgsToProcess }, Store.Commands.loadUnits () )
 
@@ -146,7 +156,7 @@ update msg model =
                                             Materials.Routes.MaterialEditRoute id ->
                                                 let
                                                     newReturnMsgsToProcess =
-                                                        model.returnMsgsToProcess ++ [ WaitForServerSuccessAndRedirectToRoute route ]
+                                                        model.returnMsgsToProcess ++ [ ReturnMsgs.WaitForServerSuccessAndRedirectToRoute route ]
                                                 in
                                                     ( { model | route = route, returnMsgsToProcess = newReturnMsgsToProcess }, cmd )
 
@@ -253,7 +263,7 @@ update msg model =
 
                         x :: xs ->
                             case x of
-                                WaitForServerSuccessAndRedirectToRoute route ->
+                                ReturnMsgs.WaitForServerSuccessAndRedirectToRoute route ->
                                     let
                                         resultCmd =
                                             Cmd.batch [ Cmd.map Msgs.StoreMsg cmd, Navigation.newUrl <| routeToHash route ]
@@ -263,7 +273,7 @@ update msg model =
                                     in
                                         ( resultModel, resultCmd )
 
-                                WaitForServerSuccessAndRedirectWithDefaultRouteAndNotification route notification ->
+                                ReturnMsgs.WaitForServerSuccessAndRedirectWithDefaultRouteAndNotification route notification ->
                                     let
                                         resultCmd =
                                             Cmd.batch [ Cmd.map Msgs.StoreMsg cmd, Navigation.newUrl <| routeToHash route ]
@@ -273,7 +283,7 @@ update msg model =
                                     in
                                         ( resultModel, resultCmd )
 
-                                WaitForServerSuccessAndRedirectToRouteWithNotification route notification ->
+                                ReturnMsgs.WaitForServerSuccessAndRedirectToRouteWithNotification route notification ->
                                     let
                                         resultCmd =
                                             Cmd.batch [ Cmd.map Msgs.StoreMsg cmd, Navigation.newUrl <| routeToHash route ]
@@ -283,7 +293,7 @@ update msg model =
                                     in
                                         ( resultModel, resultCmd )
 
-                                WaitForServerSuccessAndShowNotification notification ->
+                                ReturnMsgs.WaitForServerSuccessAndShowNotification notification ->
                                     let
                                         resultCmd =
                                             Cmd.map Msgs.StoreMsg cmd
@@ -293,10 +303,30 @@ update msg model =
                                     in
                                         ( resultModel, resultCmd )
 
-                                WaitForServerSuccessAndRedirectToRouteWithNotificationRestoringMaterialModel route notification materialModel ->
+                                ReturnMsgs.SaveForLaterWaitForServerSuccessAndRedirectToRoute route ->
                                     let
                                         resultCmd =
-                                            Cmd.map Msgs.StoreMsg cmd
+                                            Cmd.batch [ Cmd.map Msgs.StoreMsg cmd, Navigation.newUrl <| routeToHash route ]
+
+                                        resultModel =
+                                            { updatedModel | returnMsgsToProcess = xs }
+                                    in
+                                        ( resultModel, resultCmd )
+
+                                ReturnMsgs.SaveForLaterWaitForServerSuccessAndRedirectToRouteWithNotification route notification ->
+                                    let
+                                        resultCmd =
+                                            Cmd.batch [ Cmd.map Msgs.StoreMsg cmd, Navigation.newUrl <| routeToHash route ]
+
+                                        resultModel =
+                                            { updatedModel | returnMsgsToProcess = xs, notification = successNotification notification }
+                                    in
+                                        ( resultModel, resultCmd )
+
+                                ReturnMsgs.SaveForLaterWaitForServerSuccessAndRedirectToRouteWithNotificationRestoringMaterialModel route notification materialModel ->
+                                    let
+                                        resultCmd =
+                                            Cmd.batch [ Cmd.map Msgs.StoreMsg cmd, Navigation.newUrl <| routeToHash route ]
 
                                         resultModel =
                                             { updatedModel | notification = successNotification notification, returnMsgsToProcess = xs, materialModule = materialModel }

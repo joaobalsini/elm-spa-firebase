@@ -11,6 +11,7 @@ import Units.Model exposing (Unit, initUnit, getUnitByIdFromList)
 import Utils.CommonDefinitions exposing (FieldError)
 import Utils.StringNumberConversion exposing (floatToStringBrazilFormat)
 import Units.Routes
+import ReturnMsgs
 
 
 view : Model -> Maybe (List Material) -> Maybe (List Unit) -> MaterialRoute -> Html Msg
@@ -63,7 +64,28 @@ view model maybeMaterials maybeUnits subroute =
                     in
                         div [ class "main" ]
                             [ page
+                            , removeConfirmationDiv model
                             ]
+
+
+removeConfirmationDiv : Model -> Html Msg
+removeConfirmationDiv { requestRemoveConfirmation } =
+    case requestRemoveConfirmation of
+        Nothing ->
+            text ""
+
+        Just id ->
+            div [ class "ui page dimmer active" ]
+                [ div [ class "content" ]
+                    [ div [ class "center" ]
+                        [ h1 [] [ text "Are you sure?" ]
+                        , div []
+                            [ a [ class "ui button", onClick (Remove id) ] [ text "Yes" ]
+                            , a [ class "ui button", onClick (CancelRemoveConfirmation) ] [ text "No" ]
+                            ]
+                        ]
+                    ]
+                ]
 
 
 unitOption : String -> Unit -> Html Msg
@@ -87,7 +109,7 @@ materialsToTable materials units model =
         div []
             [ h1 [ class "ui header" ] [ text "Materials list" ]
             , table_
-            , button [ class "ui button", onClick (NavigateRoute (MaterialsRoutes MaterialNewRoute)) ] [ text "New" ]
+            , button [ class "ui button", onClick (NavigateRoute (MaterialsRoutes MaterialNewRoute) ReturnMsgs.NoOp) ] [ text "New" ]
             ]
 
 
@@ -121,9 +143,9 @@ materialToTr units material =
             , td [] [ text unit_name ]
             , td [] [ text <| floatToStringBrazilFormat material.inventory ]
             , td []
-                [ button [ class "ui button", onClick (NavigateRoute (MaterialsRoutes (MaterialEditRoute material.id))) ] [ text "Edit" ]
-                , button [ class "ui button", onClick (NavigateRoute (MaterialsRoutes (MaterialShowRoute material.id))) ] [ text "Show" ]
-                , button [ class "ui button", onClick (Remove material.id) ] [ text "Remove" ]
+                [ button [ class "ui button", onClick (NavigateRoute (MaterialsRoutes (MaterialEditRoute material.id)) ReturnMsgs.NoOp) ] [ text "Edit" ]
+                , button [ class "ui button", onClick (NavigateRoute (MaterialsRoutes (MaterialShowRoute material.id)) ReturnMsgs.NoOp) ] [ text "Show" ]
+                , button [ class "ui button", onClick (RequestRemoveConfirmation material.id) ] [ text "Remove" ]
                 ]
             ]
 
@@ -147,17 +169,20 @@ materialShow material units =
                 , h4 [] [ text "Represented in unit" ]
                 , p []
                     [ span [] [ text unit_name ]
-                    , span [] [ text " " ]
-                    , span [] [ a [ href "javascript:void(0);", onClick (NavigateRoute (UnitsRoutes (Units.Routes.UnitShowRoute unit_id))) ] [ text "View" ] ]
+                    , span [] [ text " (" ]
+                    , span [] [ a [ href "javascript:void(0);", onClick (NavigateRoute (UnitsRoutes (Units.Routes.UnitShowRoute unit_id)) ReturnMsgs.NoOp) ] [ text "View" ] ]
+                    , span [] [ text " | " ]
+                    , span [] [ a [ href "javascript:void(0);", onClick (NavigateRoute (UnitsRoutes (Units.Routes.UnitEditRoute unit_id)) (ReturnMsgs.SaveForLaterWaitForServerSuccessAndRedirectToRouteWithNotification (MaterialsRoutes (MaterialShowRoute material.id)) "Unit successfully updated routing back to Material Show!")) ] [ text "Edit" ] ]
+                    , span [] [ text ")" ]
                     ]
                 , h4 [] [ text "Inventory" ]
                 , p [] [ text ((floatToStringBrazilFormat material.inventory) ++ unit_initials) ]
                 ]
             , a [ href "javascript:void(0);", onClick (RedirectBack) ] [ text "Back" ]
             , span [] [ text " | " ]
-            , a [ href "javascript:void(0);", onClick (NavigateRoute (MaterialsRoutes (MaterialEditRoute material.id))) ] [ text "Edit" ]
+            , a [ href "javascript:void(0);", onClick (NavigateRoute (MaterialsRoutes (MaterialEditRoute material.id)) ReturnMsgs.NoOp) ] [ text "Edit" ]
             , span [] [ text " | " ]
-            , a [ href "javascript:void(0);", onClick (NavigateRoute (MaterialsRoutes MaterialIndexRoute)) ] [ text "Materials list" ]
+            , a [ href "javascript:void(0);", onClick (NavigateRoute (MaterialsRoutes MaterialIndexRoute) ReturnMsgs.NoOp) ] [ text "Materials list" ]
             ]
 
 
@@ -218,7 +243,7 @@ materialForm model units maybeMaterial =
                         , a [ class "ui button", onClick RedirectBack ] [ text "Cancel" ]
                         ]
                     ]
-                , a [ href "javascript:void(0);", onClick (NavigateRoute (MaterialsRoutes MaterialIndexRoute)) ] [ text "Materials list" ]
+                , a [ href "javascript:void(0);", onClick (NavigateRoute (MaterialsRoutes MaterialIndexRoute) ReturnMsgs.NoOp) ] [ text "Materials list" ]
                 ]
             ]
 

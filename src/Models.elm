@@ -1,7 +1,8 @@
 module Models exposing (..)
 
 import Routes exposing (..)
-import Msgs exposing (Msg, ReturnMsg)
+import Msgs exposing (Msg)
+import ReturnMsgs exposing (ReturnMsg)
 import Materials.Main
 import Materials.Model
 import Units.Main

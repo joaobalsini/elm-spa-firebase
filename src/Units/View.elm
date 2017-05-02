@@ -8,6 +8,7 @@ import Units.Msgs exposing (..)
 import Routes exposing (..)
 import Units.Routes exposing (..)
 import Utils.CommonDefinitions exposing (FieldError)
+import ReturnMsgs
 
 
 view : Model -> Maybe (List Unit) -> UnitRoute -> Html Msg
@@ -54,7 +55,28 @@ view model maybeUnits subroute =
             in
                 div [ class "main" ]
                     [ page
+                    , removeConfirmationDiv model
                     ]
+
+
+removeConfirmationDiv : Model -> Html Msg
+removeConfirmationDiv { requestRemoveConfirmation } =
+    case requestRemoveConfirmation of
+        Nothing ->
+            text ""
+
+        Just id ->
+            div [ class "ui page dimmer active" ]
+                [ div [ class "content" ]
+                    [ div [ class "center" ]
+                        [ h1 [] [ text "Are you sure?" ]
+                        , div []
+                            [ a [ class "ui button", onClick (Remove id) ] [ text "Yes" ]
+                            , a [ class "ui button", onClick (CancelRemoveConfirmation) ] [ text "No" ]
+                            ]
+                        ]
+                    ]
+                ]
 
 
 unitOption : String -> Unit -> Html Msg
@@ -78,7 +100,7 @@ unitsToTable units =
         div []
             [ h1 [ class "ui header" ] [ text "Units list" ]
             , table_
-            , button [ class "ui button", onClick (NavigateRoute (UnitsRoutes UnitNewRoute)) ] [ text "New" ]
+            , button [ class "ui button", onClick (NavigateRoute (UnitsRoutes UnitNewRoute) ReturnMsgs.NoOp) ] [ text "New" ]
             ]
 
 
@@ -101,9 +123,9 @@ unitToTr units unit =
         , td [] [ text unit.name ]
         , td [] [ text unit.initials ]
         , td []
-            [ button [ class "ui button", onClick (NavigateRoute (UnitsRoutes (UnitEditRoute unit.id))) ] [ text "Edit" ]
-            , button [ class "ui button", onClick (NavigateRoute (UnitsRoutes (UnitShowRoute unit.id))) ] [ text "Show" ]
-            , button [ class "ui button", onClick (Remove unit.id) ] [ text "Remove" ]
+            [ button [ class "ui button", onClick (NavigateRoute (UnitsRoutes (UnitEditRoute unit.id)) ReturnMsgs.NoOp) ] [ text "Edit" ]
+            , button [ class "ui button", onClick (NavigateRoute (UnitsRoutes (UnitShowRoute unit.id)) ReturnMsgs.NoOp) ] [ text "Show" ]
+            , button [ class "ui button", onClick (RequestRemoveConfirmation unit.id) ] [ text "Remove" ]
             ]
         ]
 
@@ -120,9 +142,9 @@ unitShow unit =
             ]
         , a [ href "javascript:void(0);", onClick (RedirectBack) ] [ text "Back" ]
         , span [] [ text " | " ]
-        , a [ href "javascript:void(0);", onClick (NavigateRoute (UnitsRoutes (UnitEditRoute unit.id))) ] [ text "Edit" ]
+        , a [ href "javascript:void(0);", onClick (NavigateRoute (UnitsRoutes (UnitEditRoute unit.id)) ReturnMsgs.NoOp) ] [ text "Edit" ]
         , span [] [ text " | " ]
-        , a [ href "javascript:void(0);", onClick (NavigateRoute (UnitsRoutes UnitIndexRoute)) ] [ text "Units list" ]
+        , a [ href "javascript:void(0);", onClick (NavigateRoute (UnitsRoutes UnitIndexRoute) ReturnMsgs.NoOp) ] [ text "Units list" ]
         ]
 
 
@@ -174,7 +196,7 @@ unitForm model maybeUnit =
                         , a [ class "ui button", onClick RedirectBack ] [ text "Cancel" ]
                         ]
                     ]
-                , a [ href "javascript:void(0);", onClick (NavigateRoute (UnitsRoutes UnitIndexRoute)) ] [ text "Units list" ]
+                , a [ href "javascript:void(0);", onClick (NavigateRoute (UnitsRoutes UnitIndexRoute) ReturnMsgs.NoOp) ] [ text "Units list" ]
                 ]
             ]
 

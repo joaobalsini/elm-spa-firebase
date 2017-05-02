@@ -6,7 +6,7 @@ import Materials.Model exposing (Model, Material, MaterialDB, initModel, initMat
 import Materials.Msgs exposing (..)
 import Store.Commands
 import Materials.Routes
-import Msgs exposing (ReturnMsg(..))
+import ReturnMsgs exposing (ReturnMsg(..))
 
 
 -- update
@@ -32,10 +32,10 @@ update msg model =
             , NoOp
             )
 
-        NavigateRoute route ->
+        NavigateRoute route returnMsg ->
             ( model
             , Navigation.newUrl <| routeToHash route
-            , NoOp
+            , returnMsg
             )
 
         RedirectBack ->
@@ -109,4 +109,4 @@ update msg model =
             ( { model | requestRemoveConfirmation = Nothing }, Cmd.none, NoOp )
 
         Remove id ->
-            ( model, Store.Commands.removeMaterial id, WaitForServerSuccessAndShowNotification "Material successfully removed!" )
+            ( { model | requestRemoveConfirmation = Nothing }, Store.Commands.removeMaterial id, WaitForServerSuccessAndShowNotification "Material successfully removed!" )
